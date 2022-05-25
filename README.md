@@ -1,4 +1,4 @@
-# Show
+# QV
 
 A simply CLI app to show your data.
 
