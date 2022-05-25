@@ -1,0 +1,22 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "packageRules": [
+    {
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "groupName": "all dependencies",
+      "groupSlug": "all",
+      "automerge": true
+    }
+  ],
+  "groupName": "all dependencies",
+  "separateMajorMinor": false,
+  "groupSlug": "all",
+  "lockFileMaintenance": {
+    "enabled": false
+  },
+  "dependencyDashboard": true
+}
