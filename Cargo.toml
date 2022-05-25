@@ -1,7 +1,14 @@
 [package]
 name = "qv"
+description = "quickly view your data"
 version = "0.1.0"
 edition = "2021"
+homepage = "https://github.com/timvw/qv"
+repository = "https://github.com/timvw/qv"
+readme = "README.md"
+authors = ["Tim Van Wassenhove <tim@timvw.be>"]
+license = "Apache-2.0"
+keywords = [ "quickview", "data", "arrow", "query", "sql", "datafusion", "aws", "glue" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
