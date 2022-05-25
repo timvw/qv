@@ -1,6 +1,8 @@
-# QV
+# QV - Quickly view your data
 
-A simply CLI app to show your data.
+A simply CLI to quickly view your data.
+
+## Usage
 
 ```bash
 cargo run -- /Users/timvw/datasets/nyc/trip\ data/green_tripdata_2020-07.csv
