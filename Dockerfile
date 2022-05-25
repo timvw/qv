@@ -26,7 +26,10 @@ RUN rustup component add rustfmt
 RUN cargo build --release
 
 FROM debian:bullseye-slim
-
+RUN apt-get update 
+RUN apt-get install --no-install-recommends -y ca-certificates
+#RUN apt-get install -y extra-runtime-dependencies
+#RUN rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/src/qv/target/release/qv /usr/local/bin
 
 CMD ["qv"]

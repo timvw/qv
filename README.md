@@ -4,9 +4,9 @@ A simply CLI to quickly view your data.
 
 ## Installation
 
-### Via rust toolchain
+### As a container image
 ```bash
-cargo install qv
+docker run --rm -it -v $HOME/.aws:/root/.aws -e AWS_PROFILE=icteam docker.io/timvw/qv:latest qv --path s3://datafusion-testing/data/avro/alltypes_plain.avro
 ```
 
 ### Via github releases
@@ -21,10 +21,9 @@ tar -zxf qv_v0.1.5_x86_64-apple-darwin.tar.gz
 #brew install qv
 ```
 
-### As a container image
+### Via rust toolchain
 ```bash
-#todo
-#docker run timvw/qv:latest
+cargo install qv
 ```
 
 ## Usage
