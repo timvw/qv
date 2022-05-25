@@ -38,5 +38,6 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v3
         with:
+          context: .
           push: true
           tags: ghcr.io/timvw/qv:latest
