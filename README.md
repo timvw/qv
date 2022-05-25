@@ -4,8 +4,27 @@ A simply CLI to quickly view your data.
 
 ## Installation
 
+### Via rust toolchain
 ```bash
 cargo install qv
+```
+
+### Via github releases
+```bash
+wget https://github.com/timvw/qv/releases/download/v0.1.5/qv_v0.1.5_x86_64-apple-darwin.tar.gz
+tar -zxf qv_v0.1.5_x86_64-apple-darwin.tar.gz
+```
+
+### As a homebrew package
+```bash
+#todo
+#brew install qv
+```
+
+### As a container image
+```bash
+#todo
+#docker run timvw/qv:latest
 ```
 
 ## Usage
