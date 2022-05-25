@@ -2,10 +2,16 @@
 
 A simply CLI to quickly view your data.
 
+## Installation
+
+```bash
+cargo install qv
+```
+
 ## Usage
 
 ```bash
-cargo run -- /Users/timvw/datasets/nyc/trip\ data/green_tripdata_2020-07.csv
+qv /tmp/datasets/nyc/trip\ data/green_tripdata_2020-07.csv
 
 +----------+----------------------+-----------------------+--------------------+------------+--------------+--------------+-----------------+---------------+-------------+-------+---------+------------+--------------+-----------+-----------------------+--------------+--------------+-----------+----------------------+
 | VendorID | lpep_pickup_datetime | lpep_dropoff_datetime | store_and_fwd_flag | RatecodeID | PULocationID | DOLocationID | passenger_count | trip_distance | fare_amount | extra | mta_tax | tip_amount | tolls_amount | ehail_fee | improvement_surcharge | total_amount | payment_type | trip_type | congestion_surcharge |
@@ -22,7 +28,7 @@ cargo run -- /Users/timvw/datasets/nyc/trip\ data/green_tripdata_2020-07.csv
 | 2        | 2020-07-01 00:45:59  | 2020-07-01 01:01:02   | N                  | 1          | 75           | 87           | 1               | 8.17          | 24          | 0.5   | 0.5     | 4.21       | 0            |           | 0.3                   | 32.26        | 1            | 1         | 2.75                 |
 +----------+----------------------+-----------------------+--------------------+------------+--------------+--------------+-----------------+---------------+-------------+-------+---------+------------+--------------+-----------+-----------------------+--------------+--------------+-----------+----------------------+
 
-cargo run -- ./testing/data/avro/alltypes_plain.snappy.avro
+qv ./testing/data/avro/alltypes_plain.snappy.avro
 
 +----+----------+-------------+--------------+---------+------------+-----------+------------+------------------+------------+---------------------+
 | id | bool_col | tinyint_col | smallint_col | int_col | bigint_col | float_col | double_col | date_string_col  | string_col | timestamp_col       |
@@ -31,7 +37,8 @@ cargo run -- ./testing/data/avro/alltypes_plain.snappy.avro
 | 7  | false    | 1           | 1            | 1       | 10         | 1.1       | 10.1       | 30342f30312f3039 | 31         | 2009-04-01 00:01:00 |
 +----+----------+-------------+--------------+---------+------------+-----------+------------+------------------+------------+---------------------+
 
-cargo run -- ./testing/data/parquet/generated_simple_numerics/blogs.parquet
+qv ./testing/data/parquet/generated_simple_numerics/blogs.parquet
+
 +--------------------------------------------------+---------+
 | reply                                            | blog_id |
 +--------------------------------------------------+---------+
