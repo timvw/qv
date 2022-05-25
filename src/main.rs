@@ -13,7 +13,16 @@ use std::sync::Arc;
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// Location where the data is located
+    #[clap(short, long)]
     path: Utf8PathBuf,
+
+    /// Query to execute
+    #[clap(short, long, default_value_t = String::from("select * from tbl"))]
+    query: String,
+
+    /// Rows to return
+    #[clap(short, long, default_value_t = 10)]
+    limit: usize,
 }
 
 #[tokio::main]
@@ -31,8 +40,8 @@ async fn main() -> Result<()> {
     let table = ListingTable::try_new(config)?;
     ctx.register_table("tbl", Arc::new(table))?;
 
-    let df = ctx.sql("SELECT * FROM tbl").await?;
-    df.show_limit(10).await?;
+    let df = ctx.sql(args.query.as_str()).await?;
+    df.show_limit(args.limit).await?;
 
     Ok(())
 }
