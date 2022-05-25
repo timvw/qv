@@ -18,8 +18,8 @@
 FROM rust:1.61 as builder
 
 WORKDIR /usr/src/qv
-COPY ./Cargo.toml .
-COPY ./Cargo.lock .
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
 COPY ./src ./src
 
 RUN rustup component add rustfmt
