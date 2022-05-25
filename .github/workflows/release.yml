@@ -45,12 +45,12 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /home/runner/.cargo
-          key: cargo-S3-cache-
+          key: cargo-S3-cache-${{ matrix.rust }}-${{ matrix.arch }}
       - name: Cache Rust dependencies
         uses: actions/cache@v3
         with:
           path: /home/runner/target
-          key: target-S3-cache-
+          key: target-S3-cache-${{ matrix.rust }}-${{ matrix.arch }}
       - name: Setup Rust toolchain
         run: |
           rustup toolchain install ${{ matrix.rust }}
