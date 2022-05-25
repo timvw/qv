@@ -15,51 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Tests
+name: Clippy
 on: [push, pull_request]
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [amd64]
-        rust: [stable]
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Cache Cargo
-        uses: actions/cache@v3
-        with:
-          path: /home/runner/.cargo
-          key: cargo-S3-cache-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v3
-        with:
-          path: /home/runner/target
-          key: target-S3-cache-
-      - name: Setup Rust toolchain
-        run: |
-          rustup toolchain install ${{ matrix.rust }}
-          rustup default ${{ matrix.rust }}
-          rustup component add rustfmt
-      - name: Run tests
-        run: |
-          cargo test
-  fmt:
-    name: Rust formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup toolchain
-        run: |
-          rustup toolchain install stable
-          rustup default stable
-          rustup component add rustfmt
-      - name: Run
-        run: cargo fmt --all -- --check
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
