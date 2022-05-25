@@ -19,7 +19,9 @@ FROM rust:1.61 as builder
 
 WORKDIR /usr/src/qv
 COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
+## Remove Cargo.lock from gitignore if creating an executable, leave it for libraries
+# More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
+#COPY ./Cargo.lock ./Cargo.lock
 COPY ./src ./src
 
 RUN rustup component add rustfmt
