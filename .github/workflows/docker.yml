@@ -16,7 +16,10 @@
 # under the License.
 
 name: Docker
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   docker:
@@ -40,4 +43,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/timvw/qv:latest
+          tags: ghcr.io/timvw/qv:latest        
