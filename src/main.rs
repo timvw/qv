@@ -1,10 +1,10 @@
-use std::sync::Arc;
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use datafusion::datafusion_data_access::object_store::local::LocalFileSystem;
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig};
 use datafusion::prelude::*;
+use std::sync::Arc;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -19,9 +19,11 @@ async fn main() -> Result<()> {
 
     let ctx = SessionContext::new();
 
-    let fs = LocalFileSystem{};
+    let fs = LocalFileSystem {};
     let fs_arc = Arc::new(fs);
-    let config = ListingTableConfig::new(fs_arc, &args.path.into_string()).infer().await?;
+    let config = ListingTableConfig::new(fs_arc, &args.path.into_string())
+        .infer()
+        .await?;
     let table = ListingTable::try_new(config)?;
     ctx.register_table("tbl", Arc::new(table))?;
 
