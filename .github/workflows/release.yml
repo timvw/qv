@@ -28,15 +28,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ amd64 ]
-        rust: [ stable ]
         include:
           - target: x86_64-pc-windows-gnu
             archive: zip
+            arch: amd64
+            rust: stable
           - target: x86_64-unknown-linux-musl
             archive: tar.gz tar.xz
+            arch: amd64
+            rust: stable
           - target: x86_64-apple-darwin
             archive: tar.gz zip
+            arch: amd64
+            rust: stable
     container:
       image: ${{ matrix.arch }}/rust
       env:
