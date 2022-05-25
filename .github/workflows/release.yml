@@ -28,6 +28,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        arch: [ amd64 ]
+        rust: [ stable ]
         include:
           - target: x86_64-pc-windows-gnu
             archive: zip
