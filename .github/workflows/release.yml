@@ -148,3 +148,21 @@ jobs:
           tag: ${{ github.event.inputs.version }}
           file_glob: true
           overwrite: true
+
+  update_homebrew_formula:
+    name: Bump Homebrew formula
+    runs-on: ubuntu-latest
+    needs:
+      - initial_release
+      - release_assets
+    steps:
+      - name: Update formulate
+        uses: mislav/bump-homebrew-formula-action@v2
+        with:
+          homebrew-tap: timvw/homebrew-tap
+          base-branch: master
+          formula-name: qv
+          tag-name: ${{needs.initial_release.outputs.crate-version}}
+          download-url: https://github.com/timvw/qv/releases/download/${{needs.initial_release.outputs.crate-version}}/qv-${{needs.initial_release.outputs.crate-version}}-x86_64-apple-darwin-generic.tar.gz
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
