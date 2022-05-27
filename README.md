@@ -17,8 +17,8 @@ tar -zxf qv_v0.1.5_x86_64-apple-darwin.tar.gz
 
 ### As a homebrew package
 ```bash
-#todo
-#brew install qv
+brew tap timvw/tap
+brew install qv
 ```
 
 ### Via rust toolchain
