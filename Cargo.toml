@@ -18,6 +18,6 @@ camino = "1.0.9"
 clap = { version = "3.1.18", features = ["derive"] }
 datafusion = { version = "8.0.0", features = ["avro"] }
 #datafusion = { git = "https://github.com/timvw/arrow-datafusion", branch = "master", features = ["avro"]  }
-#datafusion-objectstore-s3 = { git = "https://github.com/timvw/datafusion-objectstore-s3", branch = "bump-to-datafusion-8" }
-datafusion-objectstore-s3 = { git = "https://github.com/timvw/datafusion-objectstore-s3", branch = "main" }
+datafusion-objectstore-s3 = { git = "https://github.com/timvw/datafusion-objectstore-s3", branch = "bump-to-datafusion-8" }
+#datafusion-objectstore-s3 = { git = "https://github.com/timvw/datafusion-objectstore-s3", branch = "main" }
 tokio = "1.19"
