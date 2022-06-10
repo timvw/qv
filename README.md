@@ -29,23 +29,29 @@ cargo install qv
 ## Usage
 
 ```bash
-qv 0.2.0
+qv -h
+
+qv 0.1.17
 Tim Van Wassenhove <tim@timvw.be>
 quickly view your data
 
 USAGE:
-    qv [OPTIONS] --path <PATH>
+    qv [OPTIONS] <PATH>
+
+ARGS:
+    <PATH>    Location where the data is located
 
 OPTIONS:
     -h, --help             Print help information
     -l, --limit <LIMIT>    Rows to return [default: 10]
-    -p, --path <PATH>      Location where the data is located
     -q, --query <QUERY>    Query to execute [default: "select * from tbl"]
     -V, --version          Print version information
+
 ```
 
 ```bash
-qv --path s3://datafusion-testing/data/avro/alltypes_plain.avro
+qv s3://datafusion-testing/data/avro/alltypes_plain.avro
+
 +----+----------+-------------+--------------+---------+------------+-----------+------------+------------------+------------+---------------------+
 | id | bool_col | tinyint_col | smallint_col | int_col | bigint_col | float_col | double_col | date_string_col  | string_col | timestamp_col       |
 +----+----------+-------------+--------------+---------+------------+-----------+------------+------------------+------------+---------------------+
@@ -59,7 +65,7 @@ qv --path s3://datafusion-testing/data/avro/alltypes_plain.avro
 | 1  | false    | 1           | 1            | 1       | 10         | 1.1       | 10.1       | 30312f30312f3039 | 31         | 2009-01-01 00:01:00 |
 +----+----------+-------------+--------------+---------+------------+-----------+------------+------------------+------------+---------------------+
 
-cargo run -- --path s3://datafusion-testing/data/avro/alltypes_plain.avro --query "select id, bool_col from tbl" --limit 2
+qv s3://datafusion-testing/data/avro/alltypes_plain.avro --query "select id, bool_col from tbl" --limit 2
 
 +----+----------+
 | id | bool_col |
@@ -68,7 +74,7 @@ cargo run -- --path s3://datafusion-testing/data/avro/alltypes_plain.avro --quer
 | 5  | false    |
 +----+----------+
 
-qv --path /tmp/datasets/nyc/trip\ data/green_tripdata_2020-07.csv
+qv "/tmp/datasets/nyc/trip\ data/green_tripdata_2020-07.csv"
 
 +----------+----------------------+-----------------------+--------------------+------------+--------------+--------------+-----------------+---------------+-------------+-------+---------+------------+--------------+-----------+-----------------------+--------------+--------------+-----------+----------------------+
 | VendorID | lpep_pickup_datetime | lpep_dropoff_datetime | store_and_fwd_flag | RatecodeID | PULocationID | DOLocationID | passenger_count | trip_distance | fare_amount | extra | mta_tax | tip_amount | tolls_amount | ehail_fee | improvement_surcharge | total_amount | payment_type | trip_type | congestion_surcharge |
@@ -85,7 +91,7 @@ qv --path /tmp/datasets/nyc/trip\ data/green_tripdata_2020-07.csv
 | 2        | 2020-07-01 00:45:59  | 2020-07-01 01:01:02   | N                  | 1          | 75           | 87           | 1               | 8.17          | 24          | 0.5   | 0.5     | 4.21       | 0            |           | 0.3                   | 32.26        | 1            | 1         | 2.75                 |
 +----------+----------------------+-----------------------+--------------------+------------+--------------+--------------+-----------------+---------------+-------------+-------+---------+------------+--------------+-----------+-----------------------+--------------+--------------+-----------+----------------------+
 
-qv --path ./testing/data/avro/alltypes_plain.snappy.avro
+qv ./testing/data/avro/alltypes_plain.snappy.avro
 
 +----+----------+-------------+--------------+---------+------------+-----------+------------+------------------+------------+---------------------+
 | id | bool_col | tinyint_col | smallint_col | int_col | bigint_col | float_col | double_col | date_string_col  | string_col | timestamp_col       |
@@ -94,7 +100,7 @@ qv --path ./testing/data/avro/alltypes_plain.snappy.avro
 | 7  | false    | 1           | 1            | 1       | 10         | 1.1       | 10.1       | 30342f30312f3039 | 31         | 2009-04-01 00:01:00 |
 +----+----------+-------------+--------------+---------+------------+-----------+------------+------------------+------------+---------------------+
 
-qv --path ./testing/data/parquet/generated_simple_numerics/blogs.parquet
+qv ./testing/data/parquet/generated_simple_numerics/blogs.parquet
 
 +--------------------------------------------------+---------+
 | reply                                            | blog_id |

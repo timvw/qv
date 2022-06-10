@@ -13,7 +13,6 @@ use std::sync::Arc;
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// Location where the data is located
-    #[clap(short, long)]
     path: Utf8PathBuf,
 
     /// Query to execute
