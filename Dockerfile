@@ -34,4 +34,4 @@ RUN apt-get install --no-install-recommends -y ca-certificates
 #RUN rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/src/qv/target/release/qv /usr/local/bin
 
-CMD ["qv"]
+ENTRYPOINT ["qv"]
