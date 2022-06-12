@@ -1,0 +1,66 @@
+name: Draft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (eg: 0.1.0)'
+        required: true
+
+jobs:
+
+  create_draft_release:
+    runs-on: ubuntu-latest
+    outputs:
+      commitish: ${{ steps.commit.outputs.commitish }}
+    steps:
+      -
+        name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      -
+        name: Bump crate version
+        uses: thomaseizinger/set-crate-version@master
+        with:
+          version: ${{ github.event.inputs.version }}
+      -
+        name: Create release branch
+        run: git checkout -b release/${{ github.event.inputs.version }}
+      -
+        name: Initialize mandatory git config
+        run: |
+          git config user.name "GitHub actions"
+          git config user.email noreply@github.com
+      -
+        name: Commit manifest file
+        id: commit
+        run: |
+          git add Cargo.toml
+          git commit --message "Prepare release ${{ github.event.inputs.version }}"
+          echo "::set-output name=commitish::$(git rev-parse HEAD)"
+        shell: bash
+      -
+        name: Push new branch
+        run: git push origin release/${{ github.event.inputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          name: Release v${{ github.event.inputs.version }}
+          tag_name: v${{ github.event.inputs.version }}
+          target_commitish: ${{ steps.commit.outputs.commitish }}
+
+  build_assets_and_add_to_release:
+    needs: create_draft_release
+    uses: ./.github/workflows/build_assets_and_add_to_release.yml
+    with:
+      app_name: "qv"
+      version: ${{ github.event.inputs.version }}
+      commitish: ${{ needs.create_draft_release.outputs.commitish }}
+      tag_name: v${{ github.event.inputs.version }}
+
