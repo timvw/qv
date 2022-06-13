@@ -23,3 +23,4 @@ datafusion-objectstore-s3 = "0.2.1"
 deltalake = { git = "https://github.com/delta-io/delta-rs", features = ["datafusion-ext", "s3"] }
 futures-util = "0.3.21"
 tokio = "1.19"
+url = "2.2.2"

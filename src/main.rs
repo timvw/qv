@@ -7,6 +7,7 @@ use datafusion_objectstore_s3::object_store::s3::S3FileSystem;
 use std::sync::Arc;
 use datafusion::datafusion_data_access::object_store::ObjectStore;
 use std::any::Any;
+use std::collections::HashMap;
 use datafusion::arrow::datatypes::Schema as ArrowSchema;
 use datafusion::datasource::file_format::FileFormat;
 use datafusion::datasource::file_format::parquet::ParquetFormat;
@@ -17,6 +18,7 @@ use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_plan::file_format::FileScanConfig;
 use deltalake::DeltaTable;
 use async_trait::async_trait;
+use url::Url;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -47,10 +49,12 @@ async fn main() -> Result<()> {
     let s3_fs = Arc::new(S3FileSystem::default().await);
     ctx.runtime_env().register_object_store("s3", s3_fs);
 
+    let data_location = update_s3_console_url(args.path.as_str())?;
+
     let (object_store, path) = ctx
         .runtime_env()
         .object_store_registry
-        .get_by_uri(args.path.as_str())?;
+        .get_by_uri(data_location.as_str())?;
 
     let delta_table_result = deltalake::open_table(path).await;
     if delta_table_result.is_ok() {
@@ -139,4 +143,47 @@ impl TableProvider for DeltaTableWithObjectStore {
     fn as_any(&self) -> &dyn Any {
         self
     }
+}
+
+fn update_s3_console_url(path: &str) -> Result<String> {
+    if path.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
+        let parsed_url = Url::parse(path)?;
+        let path_segments = parsed_url.path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or(vec![]);
+        if path_segments.len() == 3 {
+            let bucket_name = path_segments[2];
+            let params: HashMap<String, String> = parsed_url.query()
+                .map(|v| {
+                    url::form_urlencoded::parse(v.as_bytes())
+                        .into_owned()
+                        .collect()
+                })
+                .unwrap_or_else(HashMap::new);
+            let maybe_prefix = params.get("prefix");
+            if maybe_prefix.is_some() {
+                let prefix = maybe_prefix.unwrap();
+                Ok(format!("s3://{}/{}", bucket_name, prefix))
+            } else {
+                Ok(path.to_string())
+            }
+        } else {
+            Ok(path.to_string())
+        }
+    } else {
+        Ok(path.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_update_s3_console_url() -> Result<()> {
+        assert_eq!(update_s3_console_url("/Users/timvw/test")?, "/Users/timvw/test");
+        assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
+        assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
+        Ok(())
+    }
+
 }
