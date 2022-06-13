@@ -7,12 +7,11 @@ A simply CLI to quickly view your data. Powered by [DataFusion](https://github.c
 * Run SQL against files
 * View file schemas
 * Supports [Deltalake](https://delta.io/) (No need for manifest file), CSV, JSON, [Parquet](https://parquet.apache.org/) and [Avro](https://avro.apache.org/) file formats
-* Supports local file system and s3 (and https links from aws s3 console).
+* Supports local file system and S3 (and https links from AWS S3 console).
 
 ## Usage
 
-### View local data
-
+### View data on local filesystem
 ```
 qv /mnt/datasets/nyc/green_tripdata_2020-07.csv
 +----------+----------------------+-----------------------+--------------------+------------+--------------+--------------+-----------------+---------------+-------------+-------+---------+------------+--------------+-----------+-----------------------+--------------+--------------+-----------+----------------------+
@@ -31,8 +30,7 @@ qv /mnt/datasets/nyc/green_tripdata_2020-07.csv
 +----------+----------------------+-----------------------+--------------------+------------+--------------+--------------+-----------------+---------------+-------------+-------+---------+------------+--------------+-----------+-----------------------+--------------+--------------+-----------+----------------------+
 ```
 
-### View data on s3
-
+### View data on S3
 ```
 qv s3://tpc-h-parquet/1/customer
 +-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+-------------------------------------------------------------------------------------------------------------------+
@@ -51,10 +49,7 @@ qv s3://tpc-h-parquet/1/customer
 +-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+-------------------------------------------------------------------------------------------------------------------+
 ```
 
-### View data from s3 console URL
-
-It's also possible to use the url from the AWS s3 console as path:
-
+### View data from S3 console URL
 ```
 qv https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=simple_table/&showversions=false
 +----+
@@ -103,7 +98,6 @@ qv ./datasets/tpc-h-parquet/1/customer -s
 ```
 
 ### View delta table (no need for a manifest)
-
 The current implementation depends (partially) on [Rusoto](https://github.com/rusoto/rusoto) which does not work well with AWS profiles.
 As a workaround you can export (temporary) tokens and use those as following:
 
@@ -154,7 +148,7 @@ tar -zxf qv-0.1.23-x86_64-apple-darwin-generic.tar.gz
 
 ### Run as a [container](https://github.com/timvw/qv/pkgs/container/qv) image
 ```bash
-docker run --rm -it -v $HOME/.aws:/root/.aws -e AWS_PROFILE=icteam ghcr.io/timvw/qv:v0.1.23 s3://datafusion-testing/data/avro/alltypes_plain.avro
+docker run --rm -it -v $HOME/.aws:/root/.aws -e AWS_PROFILE=icteam ghcr.io/timvw/qv:0.1.23 s3://datafusion-testing/data/avro/alltypes_plain.avro
 ```
 
 ### Via rust toolchain
