@@ -6,7 +6,6 @@ use datafusion::prelude::*;
 use datafusion_objectstore_s3::object_store::s3::S3FileSystem;
 use std::sync::Arc;
 use datafusion::datafusion_data_access::object_store::ObjectStore;
-use futures_util::stream::StreamExt;
 use std::any::Any;
 use datafusion::arrow::datatypes::Schema as ArrowSchema;
 use datafusion::datasource::file_format::FileFormat;
@@ -48,7 +47,7 @@ async fn main() -> Result<()> {
     let s3_fs = Arc::new(S3FileSystem::default().await);
     ctx.runtime_env().register_object_store("s3", s3_fs);
 
-    let (fs, path) = ctx
+    let (object_store, path) = ctx
         .runtime_env()
         .object_store_registry
         .get_by_uri(args.path.as_str())?;
@@ -56,10 +55,10 @@ async fn main() -> Result<()> {
     let delta_table_result = deltalake::open_table(path).await;
     if delta_table_result.is_ok() {
         let table = delta_table_result.unwrap();
-        let s3_delta_table = S3Delta { table };
-        ctx.register_table("tbl", Arc::new(s3_delta_table))?;
+        let delta_table_os = DeltaTableWithObjectStore { table, object_store };
+        ctx.register_table("tbl", Arc::new(delta_table_os))?;
     } else {
-        let config = ListingTableConfig::new(fs, path).infer().await?;
+        let config = ListingTableConfig::new(object_store, path).infer().await?;
         let table = ListingTable::try_new(config)?;
         ctx.register_table("tbl", Arc::new(table))?;
     }
@@ -76,12 +75,13 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-pub struct S3Delta {
+pub struct DeltaTableWithObjectStore {
     table: DeltaTable,
+    object_store: Arc<dyn ObjectStore>,
 }
 
 #[async_trait]
-impl TableProvider for S3Delta {
+impl TableProvider for DeltaTableWithObjectStore {
     fn schema(&self) -> Arc<ArrowSchema> {
         Arc::new(
             <ArrowSchema as TryFrom<&deltalake::schema::Schema>>::try_from(
@@ -106,8 +106,6 @@ impl TableProvider for S3Delta {
         )?);
         let filenames = self.table.get_file_uris();
 
-        let df_object_store = Arc::new(S3FileSystem::default().await);
-
         let partitions = filenames
             .into_iter()
             .zip(self.table.get_active_add_actions())
@@ -124,7 +122,7 @@ impl TableProvider for S3Delta {
         ParquetFormat::default()
             .create_physical_plan(
                 FileScanConfig {
-                    object_store: df_object_store,
+                    object_store: self.object_store.clone(),
                     file_schema: schema,
                     file_groups: partitions,
                     statistics: self.table.datafusion_table_statistics(),
