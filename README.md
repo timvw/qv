@@ -6,7 +6,7 @@ A simply CLI to quickly view your data. Powered by [DataFusion](https://github.c
 * View file (and directories of files) contents
 * Run SQL against files
 * View file schemas
-* Supports CSV, JSON, Parquet and Avro file formats
+* Supports [Deltalake](https://delta.io/) (No need for manifest file), CSV, JSON, [Parquet](https://parquet.apache.org/) and [Avro](https://avro.apache.org/) file formats
 * Supports local file system and s3.
 
 ## Usage
@@ -86,6 +86,43 @@ qv ./datasets/tpc-h-parquet/1/customer -s
 | c_comment    | Utf8      | YES         |
 +--------------+-----------+-------------+
 ```
+
+### View delta table (no need for a manifest)
+
+The current implementation depends (partially) on [Rusoto](https://github.com/rusoto/rusoto) which does not work well with AWS profiles.
+As a workaround you can export (temporary) tokens and use those as following:
+
+```bash
+ACCOUNT_ID="XXX"
+ROLE_NAME="YYY"
+ACCOUNT_ROLE_NAME="${ACCOUNT_ID}-${ROLE_NAME}"
+ACCESS_TOKEN="$(cat ~/.aws/sso/cache/*.json | jq -r ".accessToken" | grep -v null)"
+ROLE_CREDENTIALS="$(aws sso get-role-credentials --account-id="${ACCOUNT_ID}" --role-name="${ACCOUNT_ROLE_NAME}" --access-token="${ACCESS_TOKEN}")"
+
+export AWS_ACCESS_KEY_ID="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredentials.accessKeyId")"
+export AWS_SECRET_ACCESS_KEY="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredentials.secretAccessKey")"
+export AWS_SESSION_TOKEN="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredentials.sessionToken")"
+```
+
+
+```bash
+qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT
++------------+------------------+-----------+-------+-------+--------+
+| date       | county           | state     | fips  | cases | deaths |
++------------+------------------+-----------+-------+-------+--------+
+| 2021-02-25 | Caddo            | Louisiana | 22017 | 24637 | 672    |
+| 2021-02-25 | Calcasieu        | Louisiana | 22019 | 19181 | 354    |
+| 2021-02-25 | Caldwell         | Louisiana | 22021 | 1076  | 25     |
+| 2021-02-25 | Cameron          | Louisiana | 22023 | 543   | 5      |
+| 2021-02-25 | Catahoula        | Louisiana | 22025 | 1053  | 34     |
+| 2021-02-25 | Claiborne        | Louisiana | 22027 | 1407  | 49     |
+| 2021-02-25 | Concordia        | Louisiana | 22029 | 1770  | 55     |
+| 2021-02-25 | De Soto          | Louisiana | 22031 | 2635  | 71     |
+| 2021-02-25 | East Baton Rouge | Louisiana | 22033 | 35389 | 732    |
+| 2021-02-25 | East Carroll     | Louisiana | 22035 | 1094  | 23     |
++------------+------------------+-----------+-------+-------+--------+
+```
+
 
 ## Installation
 
