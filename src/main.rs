@@ -10,7 +10,6 @@ use futures_util::stream::StreamExt;
 use std::any::Any;
 use datafusion::arrow::datatypes::Schema as ArrowSchema;
 use datafusion::datasource::file_format::FileFormat;
-use datafusion::prelude::*;
 use datafusion::datasource::file_format::parquet::ParquetFormat;
 use datafusion::datasource::listing::PartitionedFile;
 use datafusion::datasource::TableProvider;
@@ -54,11 +53,11 @@ async fn main() -> Result<()> {
         .object_store_registry
         .get_by_uri(args.path.as_str())?;
 
-    if Self::is_delta_path(fs, args.path) {
-        let table = deltalake::open_table(args.path).await.unwrap();
+    let delta_table_result = deltalake::open_table(path).await;
+    if delta_table_result.is_ok() {
+        let table = delta_table_result.unwrap();
         let s3_delta_table = S3Delta { table };
-        ctx.register_table("tlb", Arc::new(s3_delta_table));
-
+        ctx.register_table("tbl", Arc::new(s3_delta_table))?;
     } else {
         let config = ListingTableConfig::new(fs, path).infer().await?;
         let table = ListingTable::try_new(config)?;
@@ -75,23 +74,6 @@ async fn main() -> Result<()> {
     df.show_limit(args.limit).await?;
 
     Ok(())
-}
-
-async fn is_delta_path(fs: Arc<dyn ObjectStore>, path: &str) -> bool {
-    let prefix = format!("{}/_delta_log", path);
-    let les_result = fs.list_dir(prefix.as_str(), Some(".json".to_string())).await;
-    if les_result.is_err() {
-        false
-    } else {
-        let mut les = les_result.unwrap();
-        let le_result = les.next().await;
-        if le_result.is_none() {
-            false
-        } else {
-            let le = le_result.unwrap();
-            le.is_ok()
-        }
-    }
 }
 
 pub struct S3Delta {
