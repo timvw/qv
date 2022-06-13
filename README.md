@@ -33,7 +33,7 @@ qv /mnt/datasets/nyc/green_tripdata_2020-07.csv
 
 ### View data on s3
 
-```bash
+```
 qv s3://tpc-h-parquet/1/customer
 +-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+-------------------------------------------------------------------------------------------------------------------+
 | c_custkey | c_name             | c_address                             | c_nationkey | c_phone         | c_acctbal | c_mktsegment | c_comment                                                                                                         |
@@ -55,7 +55,7 @@ qv s3://tpc-h-parquet/1/customer
 
 It's also possible to use the url from the AWS s3 console as path:
 
-```bash
+```
 qv https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=simple_table/&showversions=false
 +----+
 | id |
@@ -67,7 +67,7 @@ qv https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=
 ```
 
 ### Run query on data
-```bash
+```
 qv s3://tpc-h-parquet/1/customer -q 'select c_custkey, UPPER(c_name) from tbl'
 +-----------+--------------------+
 | c_custkey | upper(tbl.c_name)  |
@@ -86,7 +86,7 @@ qv s3://tpc-h-parquet/1/customer -q 'select c_custkey, UPPER(c_name) from tbl'
 ```
 
 ### View schema of data
-```bash
+```
 qv ./datasets/tpc-h-parquet/1/customer -s
 +--------------+-----------+-------------+
 | column_name  | data_type | is_nullable |
@@ -119,8 +119,7 @@ export AWS_SECRET_ACCESS_KEY="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredent
 export AWS_SESSION_TOKEN="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredentials.sessionToken")"
 ```
 
-
-```bash
+```
 qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT
 +------------+------------------+-----------+-------+-------+--------+
 | date       | county           | state     | fips  | cases | deaths |
