@@ -140,21 +140,21 @@ qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT
 
 ## Installation
 
-### As a homebrew package
+### As a [Homebrew](https://brew.sh/) package
 ```bash
 brew tap timvw/tap
 brew install qv
 ```
 
-### Download a binary from github releases
+### Download a binary from [Github Release](https://github.com/timvw/qv/releases/latest)
 ```bash
-wget https://github.com/timvw/qv/releases/download/v0.1.5/qv_v0.1.5_x86_64-apple-darwin.tar.gz
-tar -zxf qv_v0.1.5_x86_64-apple-darwin.tar.gz
+wget https://github.com/timvw/qv/releases/download/v0.1.23/qv-0.1.23-x86_64-apple-darwin-generic.tar.gz
+tar -zxf qv-0.1.23-x86_64-apple-darwin-generic.tar.gz
 ```
 
-### As a container image
+### Run as a [container](https://github.com/timvw/qv/pkgs/container/qv) image
 ```bash
-docker run --rm -it -v $HOME/.aws:/root/.aws -e AWS_PROFILE=icteam docker.io/timvw/qv:latest s3://datafusion-testing/data/avro/alltypes_plain.avro
+docker run --rm -it -v $HOME/.aws:/root/.aws -e AWS_PROFILE=icteam ghcr.io/timvw/qv:v0.1.23 s3://datafusion-testing/data/avro/alltypes_plain.avro
 ```
 
 ### Via rust toolchain
