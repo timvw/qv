@@ -111,11 +111,12 @@ impl TableProvider for DeltaTableWithObjectStore {
             .zip(self.table.get_active_add_actions())
             .enumerate()
             .map(|(_idx, (fname, action))| {
-                let sn = &fname[5..]; // strip s3://
-                let sns = sn.to_string();
-                // TODO: no way to associate stats per file in datafusion at the moment, see:
-                // https://github.com/apache/arrow-datafusion/issues/1301
-                Ok(vec![PartitionedFile::new(sns, action.size as u64)])
+                let schema_less_filepath = if let Some((_, path_without_schema)) = fname.split_once("://") {
+                    path_without_schema.to_string()
+                } else {
+                    fname
+                };
+                Ok(vec![PartitionedFile::new(schema_less_filepath, action.size as u64)])
             })
             .collect::<datafusion::error::Result<_>>()?;
 
