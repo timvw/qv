@@ -6,7 +6,7 @@ A simply CLI to quickly view your data. Powered by [DataFusion](https://github.c
 * View file (and directories of files) contents
 * Run SQL against files
 * View file schemas
-* Supports CSV, JSON, Parquet and Avro file formats
+* Supports [Deltalake](https://delta.io/) (No need for manifest file), CSV, JSON, [Parquet](https://parquet.apache.org/) and [Avro](https://avro.apache.org/) file formats
 * Supports local file system and s3.
 
 ## Usage
@@ -49,6 +49,26 @@ qv s3://tpc-h-parquet/1/customer
 | 9         | Customer#000000009 | xKiAFTjUsCuxfeleNqefumTrjS            | 8           | 18-338-906-3675 | 8324.07   | FURNITURE    | r theodolites according to the requests wake thinly excuses: pending requests haggle furiousl                     |
 | 10        | Customer#000000010 | 6LrEaV6KR6PLVcgl2ArL Q3rqzLzcT1 v2    | 5           | 15-741-346-9870 | 2753.54   | HOUSEHOLD    | es regular deposits haggle. fur                                                                                   |
 +-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+-------------------------------------------------------------------------------------------------------------------+
+```
+
+### View delta table (no need for a manifest)
+
+```bash
+qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT
++------------+------------------+-----------+-------+-------+--------+
+| date       | county           | state     | fips  | cases | deaths |
++------------+------------------+-----------+-------+-------+--------+
+| 2021-02-25 | Caddo            | Louisiana | 22017 | 24637 | 672    |
+| 2021-02-25 | Calcasieu        | Louisiana | 22019 | 19181 | 354    |
+| 2021-02-25 | Caldwell         | Louisiana | 22021 | 1076  | 25     |
+| 2021-02-25 | Cameron          | Louisiana | 22023 | 543   | 5      |
+| 2021-02-25 | Catahoula        | Louisiana | 22025 | 1053  | 34     |
+| 2021-02-25 | Claiborne        | Louisiana | 22027 | 1407  | 49     |
+| 2021-02-25 | Concordia        | Louisiana | 22029 | 1770  | 55     |
+| 2021-02-25 | De Soto          | Louisiana | 22031 | 2635  | 71     |
+| 2021-02-25 | East Baton Rouge | Louisiana | 22033 | 35389 | 732    |
+| 2021-02-25 | East Carroll     | Louisiana | 22035 | 1094  | 23     |
++------------+------------------+-----------+-------+-------+--------+
 ```
 
 ### Run query on data
