@@ -51,6 +51,21 @@ qv s3://tpc-h-parquet/1/customer
 +-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+-------------------------------------------------------------------------------------------------------------------+
 ```
 
+### View data from s3 console URL
+
+It's also possible to use the url from the AWS s3 console as path:
+
+```bash
+qv https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=simple_table/&showversions=false
++----+
+| id |
++----+
+| 9  |
+| 5  |
+| 7  |
++----+
+```
+
 ### Run query on data
 ```bash
 qv s3://tpc-h-parquet/1/customer -q 'select c_custkey, UPPER(c_name) from tbl'

@@ -19,6 +19,8 @@ camino = "1.0.9"
 clap = { version = "3.1.18", features = ["derive"] }
 datafusion = { version = "8.0.0", features = ["avro"] }
 datafusion-objectstore-s3 = "0.2.1"
-deltalake = { path = "../delta-rs/rust", features = ["datafusion-ext", "s3"]  }
+#deltalake = { path = "../delta-rs/rust", features = ["datafusion-ext", "s3"]  }
+deltalake = { git = "https://github.com/delta-io/delta-rs", features = ["datafusion-ext", "s3"] }
 futures-util = "0.3.21"
 tokio = "1.19"
+url = "2.2.2"
