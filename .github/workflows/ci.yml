@@ -59,4 +59,3 @@ jobs:
           use-cross: ${{ matrix.config.cross }}
           command: test
           args: --release --target ${{ matrix.config.target }} --no-default-features -- -C target-cpu=${{ matrix.config.target_cpu }}
-      -
