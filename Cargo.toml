@@ -16,11 +16,16 @@ keywords = [ "quickview", "data", "query", "sql", "datafusion" ]
 anyhow = "1.0"
 async-trait = "0.1"
 camino = "1.0.9"
-clap = { version = "3.1.18", features = ["derive"] }
-datafusion = { version = "8.0.0", features = ["avro"] }
-datafusion-objectstore-s3 = "0.2.1"
+clap = { version = "3.2.22", features = ["derive"] }
 #deltalake = { path = "../delta-rs/rust", features = ["datafusion-ext", "s3"]  }
-deltalake = { git = "https://github.com/delta-io/delta-rs", features = ["datafusion-ext", "s3"] }
-futures-util = "0.3.21"
-tokio = "1.19"
-url = "2.2.2"
+#deltalake = { git = "https://github.com/delta-io/delta-rs", features = ["datafusion-ext", "s3"] }
+#futures-util = "0.3.21"
+#tokio = "1.19"
+url = "2.2"
+
+datafusion = { version = "12.0", features = ["avro"] }
+object_store = { version = "0.5", features = ["aws"]}
+tokio = { version = "1.0", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
+futures = "0.3"
+aws-config = "0.48"
+aws-types = "0.48"
