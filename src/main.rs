@@ -43,11 +43,7 @@ async fn main() -> Result<()> {
     let table_arc: Arc<dyn TableProvider> = match delta_table_load_result {
         Ok(delta_table) => Arc::new(delta_table),
         Err(_) => {
-            let ltu = ListingTableUrl::parse(&data_location)?;
-            let mut config = ListingTableConfig::new(ltu);
-            config = config.infer_options(&ctx.state()).await?;
-            config = config.infer_schema(&ctx.state()).await?;
-            let table = ListingTable::try_new(config)?;
+            let table = load_listing_table(&data_location, &ctx).await?;
             Arc::new(table)
         }
     };
@@ -63,6 +59,15 @@ async fn main() -> Result<()> {
     df.show_limit(args.limit).await?;
 
     Ok(())
+}
+
+async fn load_listing_table(data_location: &String, ctx: &SessionContext) -> Result<ListingTable> {
+    let ltu = ListingTableUrl::parse(&data_location)?;
+    let mut config = ListingTableConfig::new(ltu);
+    config = config.infer_options(&ctx.state()).await?;
+    config = config.infer_schema(&ctx.state()).await?;
+    let table = ListingTable::try_new(config)?;
+    Ok(table)
 }
 
 async fn load_delta_table(
