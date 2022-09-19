@@ -160,9 +160,6 @@ async fn load_listing_table(
     ctx: &SessionContext,
     bucket_name: &str,
 ) -> Result<ListingTable> {
-    // instead of simply listing all files, let's make this a little smarter
-    // allow ppl to glob.. AND also filter out hidden files...
-
     let matching_files = list_matching_files(ctx, data_location).await?;
 
     let matching_file_urls: Vec<_> = matching_files
@@ -182,10 +179,16 @@ async fn load_listing_table(
 
 async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Result<Vec<ObjectMeta>> {
     let (object_store_url, path) = extract_object_store_url_and_path(globbing_path)?;
-    let prefix_path = extract_leading_path_without_glob_characters(&path);
-    let glob = Pattern::new(&path).map_err(|_| {
-        DataFusionError::Execution(format!("Failed to create globbing pattern from {}", &path))
-    })?;
+    let prefix_path = Path::parse(&path)?;
+
+    let maybe_glob = if contains_glob_start_character(&path) {
+        let glob = Pattern::new(&path).map_err(|_| {
+            DataFusionError::Execution(format!("Failed to create globbing pattern from {}", &path))
+        })?;
+        Some(glob)
+    } else {
+        None
+    };
 
     let store = ctx.runtime_env().object_store(&object_store_url)?;
 
@@ -194,8 +197,10 @@ async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Resul
     let matching_files_result: BoxStream<Result<ObjectMeta>> = list_result
         .map_err(Into::into)
         .try_filter(move |meta| {
-            let ok = glob.matches(meta.location.as_ref());
-            futures::future::ready(ok)
+            let glob_ok = maybe_glob.as_ref().map_or_else(|| true, |glob| {
+                glob.matches(&meta.location.as_ref())
+            });
+            futures::future::ready(glob_ok)
         })
         .boxed();
 
@@ -204,10 +209,14 @@ async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Resul
     Ok(matching_files)
 }
 
+fn contains_glob_start_character(item: &str) -> bool {
+    item.contains('?') || item.contains('*') || item.contains('[')
+}
+
 fn extract_leading_path_without_glob_characters(path: &str) -> Path {
     let leading_path_parts_without_glob: Vec<_> = path
         .split(object_store::path::DELIMITER)
-        .take_while(|part| !part.contains('?') && !part.contains('*') && !part.contains('['))
+        .take_while(|part| !contains_glob_start_character(part))
         .collect();
     Path::from_iter(leading_path_parts_without_glob)
 }
