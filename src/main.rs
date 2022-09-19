@@ -9,7 +9,12 @@ use datafusion::prelude::*;
 use deltalake::datafusion::datasource::TableProvider;
 use deltalake::storage::DeltaObjectStore;
 use deltalake::{DeltaTable, DeltaTableConfig, DeltaTableError, StorageUrl};
+use futures::stream::BoxStream;
+use futures::{StreamExt, TryStreamExt};
+use glob::Pattern;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
+use object_store::path::Path;
+use object_store::ObjectMeta;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
@@ -43,7 +48,7 @@ async fn main() -> Result<()> {
     let table_arc: Arc<dyn TableProvider> = match delta_table_load_result {
         Ok(delta_table) => Arc::new(delta_table),
         Err(_) => {
-            let table = load_listing_table(&data_location, &ctx).await?;
+            let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
             Arc::new(table)
         }
     };
@@ -59,48 +64,6 @@ async fn main() -> Result<()> {
     df.show_limit(args.limit).await?;
 
     Ok(())
-}
-
-async fn load_listing_table(data_location: &String, ctx: &SessionContext) -> Result<ListingTable> {
-    let ltu = ListingTableUrl::parse(&data_location)?;
-    let mut config = ListingTableConfig::new(ltu);
-    config = config.infer_options(&ctx.state()).await?;
-    config = config.infer_schema(&ctx.state()).await?;
-    let table = ListingTable::try_new(config)?;
-    Ok(table)
-}
-
-async fn load_delta_table(
-    data_location: &String,
-    object_store_url: &ObjectStoreUrl,
-    ctx: &SessionContext,
-) -> Result<DeltaTable, DeltaTableError> {
-    let store = ctx.runtime_env().object_store(&object_store_url)?;
-    let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
-    let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
-    let delta_config = DeltaTableConfig::default();
-    let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
-    let delta_table_load_result = delta_table.load().await;
-    delta_table_load_result.map(|_| delta_table)
-}
-
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    /// Location where the data is located
-    path: String,
-
-    /// Query to execute
-    #[clap(short, long, default_value_t = String::from("select * from tbl"), group = "sql")]
-    query: String,
-
-    /// When provided the schema is shown
-    #[clap(short, long, group = "sql")]
-    schema: bool,
-
-    /// Rows to return
-    #[clap(short, long, default_value_t = 10)]
-    limit: usize,
 }
 
 async fn build_s3_from_sdk_config(
@@ -176,6 +139,96 @@ fn extract_object_store_url_and_path(globbing_path: &str) -> Result<(ObjectStore
         .strip_prefix(object_store::path::DELIMITER)
         .unwrap_or_else(|| url.path());
     Ok((bucket_url, String::from(path)))
+}
+
+async fn load_delta_table(
+    data_location: &String,
+    object_store_url: &ObjectStoreUrl,
+    ctx: &SessionContext,
+) -> Result<DeltaTable, DeltaTableError> {
+    let store = ctx.runtime_env().object_store(&object_store_url)?;
+    let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
+    let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
+    let delta_config = DeltaTableConfig::default();
+    let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
+    let delta_table_load_result = delta_table.load().await;
+    delta_table_load_result.map(|_| delta_table)
+}
+
+async fn load_listing_table(
+    data_location: &str,
+    ctx: &SessionContext,
+    bucket_name: &str,
+) -> Result<ListingTable> {
+    // instead of simply listing all files, let's make this a little smarter
+    // allow ppl to glob.. AND also filter out hidden files...
+
+    let matching_files = list_matching_files(ctx, data_location).await?;
+
+    let matching_file_urls: Vec<_> = matching_files
+        .iter()
+        .map(|meta| {
+            ListingTableUrl::parse(format!("s3://{}/{}", bucket_name, meta.location.as_ref()))
+                .expect("failed to create listingtableurl")
+        })
+        .collect();
+
+    let mut config = ListingTableConfig::new_with_multi_paths(matching_file_urls);
+    config = config.infer_options(&ctx.state()).await?;
+    config = config.infer_schema(&ctx.state()).await?;
+    let table = ListingTable::try_new(config)?;
+    Ok(table)
+}
+
+async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Result<Vec<ObjectMeta>> {
+    let (object_store_url, path) = extract_object_store_url_and_path(globbing_path)?;
+    let prefix_path = extract_leading_path_without_glob_characters(&path);
+    let glob = Pattern::new(&path).map_err(|_| {
+        DataFusionError::Execution(format!("Failed to create globbing pattern from {}", &path))
+    })?;
+
+    let store = ctx.runtime_env().object_store(&object_store_url)?;
+
+    let list_result = store.list(Some(&prefix_path)).await?;
+
+    let matching_files_result: BoxStream<Result<ObjectMeta>> = list_result
+        .map_err(Into::into)
+        .try_filter(move |meta| {
+            let ok = glob.matches(meta.location.as_ref());
+            futures::future::ready(ok)
+        })
+        .boxed();
+
+    let matching_files: Vec<ObjectMeta> = matching_files_result.try_collect().await?;
+
+    Ok(matching_files)
+}
+
+fn extract_leading_path_without_glob_characters(path: &str) -> Path {
+    let leading_path_parts_without_glob: Vec<_> = path
+        .split(object_store::path::DELIMITER)
+        .take_while(|part| !part.contains('?') && !part.contains('*') && !part.contains('['))
+        .collect();
+    Path::from_iter(leading_path_parts_without_glob)
+}
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Location where the data is located
+    path: String,
+
+    /// Query to execute
+    #[clap(short, long, default_value_t = String::from("select * from tbl"), group = "sql")]
+    query: String,
+
+    /// When provided the schema is shown
+    #[clap(short, long, group = "sql")]
+    schema: bool,
+
+    /// Rows to return
+    #[clap(short, long, default_value_t = 10)]
+    limit: usize,
 }
 
 #[cfg(test)]
