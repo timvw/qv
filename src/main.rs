@@ -91,8 +91,8 @@ async fn main() -> Result<()> {
     } else {
         let ltu = ListingTableUrl::parse(&data_location)?;
         let mut config = ListingTableConfig::new(ltu);
-        config = config.infer_options(&ctx.state.read()).await?;
-        config = config.infer_schema(&ctx.state.read()).await?;
+        config = config.infer_options(&ctx.state()).await?;
+        config = config.infer_schema(&ctx.state()).await?;
         let table = ListingTable::try_new(config)?;
         ctx.register_table("tbl", Arc::new(table))?;
     }
@@ -115,7 +115,7 @@ fn update_s3_console_url(path: &str) -> Result<String> {
         let path_segments = parsed_url
             .path_segments()
             .map(|c| c.collect::<Vec<_>>())
-            .unwrap_or(vec![]);
+            .unwrap_or_default();
         if path_segments.len() == 3 {
             let bucket_name = path_segments[2];
             let params: HashMap<String, String> = parsed_url
@@ -127,12 +127,10 @@ fn update_s3_console_url(path: &str) -> Result<String> {
                 })
                 .unwrap_or_else(HashMap::new);
             let maybe_prefix = params.get("prefix");
-            if maybe_prefix.is_some() {
-                let prefix = maybe_prefix.unwrap();
-                Ok(format!("s3://{}/{}", bucket_name, prefix))
-            } else {
-                Ok(path.to_string())
-            }
+            let result = maybe_prefix
+                .map(|prefix| format!("s3://{}/{}", bucket_name, prefix))
+                .unwrap_or_else(|| path.to_string());
+            Ok(result)
         } else {
             Ok(path.to_string())
         }
