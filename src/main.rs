@@ -83,7 +83,7 @@ async fn build_s3_from_sdk_config(
         .await
         .expect("could not load credentials");
 
-    let s3 = AmazonS3Builder::new()
+    let s3_builder = AmazonS3Builder::new()
         .with_bucket_name(bucket_name)
         .with_region(
             sdk_config
@@ -92,14 +92,13 @@ async fn build_s3_from_sdk_config(
                 .to_string(),
         )
         .with_access_key_id(credentials.access_key_id())
-        .with_secret_access_key(credentials.secret_access_key())
-        .with_token(
-            credentials
-                .session_token()
-                .expect("could not find session_token")
-                .to_string(),
-        )
-        .build()?;
+        .with_secret_access_key(credentials.secret_access_key());
+
+    let s3 = match credentials.session_token() {
+        Some(session_token) => s3_builder.with_token(session_token),
+        None => s3_builder
+    }.build()?;
+
     Ok(s3)
 }
 
