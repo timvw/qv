@@ -179,7 +179,7 @@ async fn load_listing_table(
 
 async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Result<Vec<ObjectMeta>> {
     let (object_store_url, path) = extract_object_store_url_and_path(globbing_path)?;
-    let prefix_path = Path::parse(&path)?;
+    let prefix_path = extract_leading_path_without_glob_characters(&path);
 
     let maybe_glob = if contains_glob_start_character(&path) {
         let glob = Pattern::new(&path).map_err(|_| {
@@ -197,16 +197,23 @@ async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Resul
     let matching_files_result: BoxStream<Result<ObjectMeta>> = list_result
         .map_err(Into::into)
         .try_filter(move |meta| {
-            let glob_ok = maybe_glob.as_ref().map_or_else(|| true, |glob| {
-                glob.matches(&meta.location.as_ref())
-            });
-            futures::future::ready(glob_ok)
+            let glob_ok = maybe_glob
+                .as_ref()
+                .map_or_else(|| true, |glob| glob.matches(meta.location.as_ref()));
+            let is_hidden = is_hidden(&meta.location);
+            futures::future::ready(glob_ok && !is_hidden)
         })
         .boxed();
 
     let matching_files: Vec<ObjectMeta> = matching_files_result.try_collect().await?;
 
     Ok(matching_files)
+}
+
+fn is_hidden(path: &Path) -> bool {
+    path.parts()
+        .find(|part| part.as_ref().starts_with('.') || part.as_ref().starts_with('_'))
+        .map_or_else(|| false, |_| true)
 }
 
 fn contains_glob_start_character(item: &str) -> bool {
