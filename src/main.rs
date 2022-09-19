@@ -43,13 +43,18 @@ async fn main() -> Result<()> {
     ctx.runtime_env()
         .register_object_store("s3", &bucket_name, Arc::new(s3));
 
-    let delta_table_load_result = load_delta_table(&data_location, &object_store_url, &ctx).await;
-
-    let table_arc: Arc<dyn TableProvider> = match delta_table_load_result {
-        Ok(delta_table) => Arc::new(delta_table),
-        Err(_) => {
-            let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
-            Arc::new(table)
+    let table_arc: Arc<dyn TableProvider> = if contains_glob_start_character(&data_location) {
+        let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
+        Arc::new(table)
+    } else {
+        let delta_table_load_result =
+            load_delta_table(&data_location, &object_store_url, &ctx).await;
+        match delta_table_load_result {
+            Ok(delta_table) => Arc::new(delta_table),
+            Err(_) => {
+                let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
+                Arc::new(table)
+            }
         }
     };
     ctx.register_table("tbl", table_arc)?;
@@ -192,20 +197,26 @@ async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Resul
 
     let store = ctx.runtime_env().object_store(&object_store_url)?;
 
-    let list_result = store.list(Some(&prefix_path)).await?;
+    let head_result = store.head(&prefix_path).await;
+    let matching_files: Vec<ObjectMeta> = match head_result {
+        Ok(om) => vec![om],
+        Err(_) => {
+            let list_result = store.list(Some(&prefix_path)).await?;
 
-    let matching_files_result: BoxStream<Result<ObjectMeta>> = list_result
-        .map_err(Into::into)
-        .try_filter(move |meta| {
-            let glob_ok = maybe_glob
-                .as_ref()
-                .map_or_else(|| true, |glob| glob.matches(meta.location.as_ref()));
-            let is_hidden = is_hidden(&meta.location);
-            futures::future::ready(glob_ok && !is_hidden)
-        })
-        .boxed();
+            let matching_files_result: BoxStream<Result<ObjectMeta>> = list_result
+                .map_err(Into::into)
+                .try_filter(move |meta| {
+                    let glob_ok = maybe_glob
+                        .as_ref()
+                        .map_or_else(|| true, |glob| glob.matches(meta.location.as_ref()));
+                    let is_hidden = is_hidden(&meta.location);
+                    futures::future::ready(glob_ok && !is_hidden)
+                })
+                .boxed();
 
-    let matching_files: Vec<ObjectMeta> = matching_files_result.try_collect().await?;
+            matching_files_result.try_collect().await?
+        }
+    };
 
     Ok(matching_files)
 }
