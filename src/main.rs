@@ -1,23 +1,89 @@
 use anyhow::Result;
 use aws_types::credentials::*;
-use camino::Utf8PathBuf;
+use aws_types::SdkConfig;
 use clap::Parser;
 use datafusion::common::DataFusionError;
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::prelude::*;
+use deltalake::datafusion::datasource::TableProvider;
 use deltalake::storage::DeltaObjectStore;
-use deltalake::{DeltaTable, DeltaTableConfig, StorageUrl};
-use object_store::aws::AmazonS3Builder;
+use deltalake::{DeltaTable, DeltaTableConfig, DeltaTableError, StorageUrl};
+use object_store::aws::{AmazonS3, AmazonS3Builder};
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let args = Args::parse();
+
+    let data_location = update_s3_console_url(&args.path)?;
+
+    let (object_store_url, _) = extract_object_store_url_and_path(&data_location)?;
+    let bucket_name = String::from(
+        Url::parse(object_store_url.as_str())
+            .expect("failed to parse object_store_url")
+            .host_str()
+            .expect("failed to extract host/bucket from path"),
+    );
+
+    let config = SessionConfig::new().with_information_schema(true);
+    let ctx = SessionContext::with_config(config);
+
+    let sdk_config = aws_config::load_from_env().await;
+
+    let s3 = build_s3_from_sdk_config(&bucket_name, &sdk_config).await?;
+
+    ctx.runtime_env()
+        .register_object_store("s3", &bucket_name, Arc::new(s3));
+
+    let delta_table_load_result = load_delta_table(&data_location, &object_store_url, &ctx).await;
+
+    let table_arc: Arc<dyn TableProvider> = match delta_table_load_result {
+        Ok(delta_table) => Arc::new(delta_table),
+        Err(_) => {
+            let ltu = ListingTableUrl::parse(&data_location)?;
+            let mut config = ListingTableConfig::new(ltu);
+            config = config.infer_options(&ctx.state()).await?;
+            config = config.infer_schema(&ctx.state()).await?;
+            let table = ListingTable::try_new(config)?;
+            Arc::new(table)
+        }
+    };
+    ctx.register_table("tbl", table_arc)?;
+
+    let query = if args.schema {
+        "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'tbl'"
+    } else {
+        args.query.as_str()
+    };
+
+    let df = ctx.sql(query).await?;
+    df.show_limit(args.limit).await?;
+
+    Ok(())
+}
+
+async fn load_delta_table(
+    data_location: &String,
+    object_store_url: &ObjectStoreUrl,
+    ctx: &SessionContext,
+) -> Result<DeltaTable, DeltaTableError> {
+    let store = ctx.runtime_env().object_store(&object_store_url)?;
+    let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
+    let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
+    let delta_config = DeltaTableConfig::default();
+    let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
+    let delta_table_load_result = delta_table.load().await;
+    delta_table_load_result.map(|_| delta_table)
+}
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// Location where the data is located
-    path: Utf8PathBuf,
+    path: String,
 
     /// Query to execute
     #[clap(short, long, default_value_t = String::from("select * from tbl"), group = "sql")]
@@ -32,24 +98,10 @@ struct Args {
     limit: usize,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let args = Args::parse();
-
-    let data_location = update_s3_console_url(args.path.as_str())?;
-
-    let (object_store_url, _) = extract_object_store_url_and_path(&data_location)?;
-    let bucket_name = String::from(
-        Url::parse(object_store_url.as_str())
-            .expect("failed to parse object_store_url")
-            .host_str()
-            .expect("failed to extract host/bucket from path"),
-    );
-
-    let config = SessionConfig::new().with_information_schema(true);
-    let ctx = SessionContext::with_config(config);
-
-    let sdk_config = aws_config::load_from_env().await;
+async fn build_s3_from_sdk_config(
+    bucket_name: &String,
+    sdk_config: &SdkConfig,
+) -> Result<AmazonS3> {
     let credentials_providder = sdk_config
         .credentials_provider()
         .expect("could not find credentials provider");
@@ -59,7 +111,7 @@ async fn main() -> Result<()> {
         .expect("could not load credentials");
 
     let s3 = AmazonS3Builder::new()
-        .with_bucket_name(&bucket_name)
+        .with_bucket_name(bucket_name)
         .with_region(
             sdk_config
                 .region()
@@ -75,38 +127,7 @@ async fn main() -> Result<()> {
                 .to_string(),
         )
         .build()?;
-
-    ctx.runtime_env()
-        .register_object_store("s3", &bucket_name, Arc::new(s3));
-
-    let store = ctx.runtime_env().object_store(&object_store_url)?;
-    let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
-    let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
-    let delta_config = DeltaTableConfig::default();
-    let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
-    let delta_table_load_result = delta_table.load().await;
-
-    if delta_table_load_result.is_ok() {
-        ctx.register_table("tbl", Arc::new(delta_table))?;
-    } else {
-        let ltu = ListingTableUrl::parse(&data_location)?;
-        let mut config = ListingTableConfig::new(ltu);
-        config = config.infer_options(&ctx.state()).await?;
-        config = config.infer_schema(&ctx.state()).await?;
-        let table = ListingTable::try_new(config)?;
-        ctx.register_table("tbl", Arc::new(table))?;
-    }
-
-    let query = if args.schema {
-        "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'tbl'"
-    } else {
-        args.query.as_str()
-    };
-
-    let df = ctx.sql(query).await?;
-    df.show_limit(args.limit).await?;
-
-    Ok(())
+    Ok(s3)
 }
 
 fn update_s3_console_url(path: &str) -> Result<String> {

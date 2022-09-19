@@ -17,8 +17,6 @@ anyhow = "1.0"
 async-trait = "0.1"
 aws-config = "0.48"
 aws-types = "0.48"
-camino = "1.0.9"
-#deltalake = { path = "../delta-rs/rust", features = ["datafusion-ext", "s3"]  }
 chrono = "0.4.22"
 clap = { version = "3.2.22", features = ["derive"] }
 datafusion = { version = "12.0.0", features = ["avro"] }
