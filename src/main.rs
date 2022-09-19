@@ -22,7 +22,9 @@ use std::collections::HashMap;
 //use datafusion::logical_expr::TableType;
 //use datafusion::physical_plan::ExecutionPlan;
 //use datafusion::physical_plan::file_format::FileScanConfig;
-//use deltalake::DeltaTable;
+use deltalake::storage::DeltaObjectStore;
+use deltalake::{DeltaTable, DeltaTableBuilder, DeltaTableConfig, Path, StorageUrl};
+//use deltalake::delta_datafusion::TableProvider;
 //use async_trait::async_trait;
 use url::Url;
 
@@ -92,20 +94,20 @@ async fn main() -> Result<()> {
     ctx.runtime_env()
         .register_object_store("s3", &bucket_name, Arc::new(s3));
 
-    //let store = ctx.runtime_env().object_store(&object_store_url)?;
+    let store = ctx.runtime_env().object_store(&object_store_url)?;
+    let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
+    let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
+    let delta_config = DeltaTableConfig::default();
+    let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
+    let delta_table_load_result = delta_table.load().await;
 
-    //let delta_table_result = deltalake::open_table(path).await;
-    let delta_table_result = false;
-    if delta_table_result {
-        //    let table = delta_table_result.unwrap();
-        //    let delta_table_os = DeltaTableWithObjectStore { table, object_store };
-        //    ctx.register_table("tbl", Arc::new(delta_table_os))?;
+    if delta_table_load_result.is_ok() {
+        ctx.register_table("tbl", Arc::new(delta_table))?;
     } else {
-        let ltu = ListingTableUrl::parse(data_location)?;
+        let ltu = ListingTableUrl::parse(&data_location)?;
         let mut config = ListingTableConfig::new(ltu);
         config = config.infer_options(&ctx.state.read()).await?;
         config = config.infer_schema(&ctx.state.read()).await?;
-
         let table = ListingTable::try_new(config)?;
         ctx.register_table("tbl", Arc::new(table))?;
     }
