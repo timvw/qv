@@ -1,31 +1,16 @@
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
-//use datafusion::datasource::listing::{ListingTable, ListingTableConfig};
 use datafusion::prelude::*;
-//use datafusion_objectstore_s3::object_store::s3::S3FileSystem;
 use std::sync::Arc;
-//use datafusion::datafusion_data_access::object_store::ObjectStore;
-//use std::any::Any;
 use aws_types::credentials::*;
-use datafusion::arrow::compute::lt;
 use datafusion::common::DataFusionError;
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use object_store::aws::AmazonS3Builder;
 use std::collections::HashMap;
-//use datafusion::arrow::datatypes::Schema as ArrowSchema;
-//use datafusion::datasource::file_format::FileFormat;
-//use datafusion::datasource::file_format::parquet::ParquetFormat;
-//use datafusion::datasource::listing::PartitionedFile;
-//use datafusion::datasource::TableProvider;
-//use datafusion::logical_expr::TableType;
-//use datafusion::physical_plan::ExecutionPlan;
-//use datafusion::physical_plan::file_format::FileScanConfig;
 use deltalake::storage::DeltaObjectStore;
-use deltalake::{DeltaTable, DeltaTableBuilder, DeltaTableConfig, Path, StorageUrl};
-//use deltalake::delta_datafusion::TableProvider;
-//use async_trait::async_trait;
+use deltalake::{DeltaTable, DeltaTableConfig, StorageUrl};
 use url::Url;
 
 #[derive(Parser, Debug)]
@@ -53,7 +38,7 @@ async fn main() -> Result<()> {
 
     let data_location = update_s3_console_url(args.path.as_str())?;
 
-    let (object_store_url, path) = extract_object_store_url_and_path(&data_location)?;
+    let (object_store_url, _) = extract_object_store_url_and_path(&data_location)?;
     let bucket_name = String::from(
         Url::parse(object_store_url.as_str())
             .expect("failed to parse object_store_url")
@@ -123,75 +108,6 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-/*
-pub struct DeltaTableWithObjectStore {
-    table: DeltaTable,
-    object_store: Arc<dyn ObjectStore>,
-}
-
-#[async_trait]
-impl TableProvider for DeltaTableWithObjectStore {
-    fn schema(&self) -> Arc<ArrowSchema> {
-        Arc::new(
-            <ArrowSchema as TryFrom<&deltalake::schema::Schema>>::try_from(
-                DeltaTable::schema(&self.table).unwrap(),
-            )
-                .unwrap(),
-        )
-    }
-
-    fn table_type(&self) -> TableType {
-        TableType::Base
-    }
-
-    async fn scan(
-        &self,
-        projection: &Option<Vec<usize>>,
-        filters: &[Expr],
-        limit: Option<usize>,
-    ) -> datafusion::error::Result<Arc<dyn ExecutionPlan>> {
-        let schema = Arc::new(<ArrowSchema as TryFrom<&deltalake::schema::Schema>>::try_from(
-            DeltaTable::schema(&self.table).unwrap(),
-        )?);
-        let filenames = self.table.get_file_uris();
-
-        let partitions = filenames
-            .into_iter()
-            .zip(self.table.get_active_add_actions())
-            .enumerate()
-            .map(|(_idx, (fname, action))| {
-                let schema_less_filepath = if let Some((_, path_without_schema)) = fname.split_once("://") {
-                    path_without_schema.to_string()
-                } else {
-                    fname
-                };
-                Ok(vec![PartitionedFile::new(schema_less_filepath, action.size as u64)])
-            })
-            .collect::<datafusion::error::Result<_>>()?;
-
-        ParquetFormat::default()
-            .create_physical_plan(
-                FileScanConfig {
-                    object_store: self.object_store.clone(),
-                    file_schema: schema,
-                    file_groups: partitions,
-                    statistics: self.table.datafusion_table_statistics(),
-                    projection: projection.clone(),
-                    limit,
-                    table_partition_cols: self.table.get_metadata().unwrap().partition_columns.clone(),
-                },
-                filters,
-            )
-            .await
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
- */
 
 fn update_s3_console_url(path: &str) -> Result<String> {
     if path.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
