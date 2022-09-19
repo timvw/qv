@@ -98,20 +98,11 @@ qv ./datasets/tpc-h-parquet/1/customer -s
 ```
 
 ### View delta table (no need for a manifest)
-The current implementation depends (partially) on [Rusoto](https://github.com/rusoto/rusoto) which does not work well with AWS profiles.
-As a workaround you can export (temporary) tokens and use those as following:
 
-```bash
-ACCOUNT_ID="XXX"
-ROLE_NAME="YYY"
-ACCOUNT_ROLE_NAME="${ACCOUNT_ID}-${ROLE_NAME}"
-ACCESS_TOKEN="$(cat ~/.aws/sso/cache/*.json | jq -r ".accessToken" | grep -v null)"
-ROLE_CREDENTIALS="$(aws sso get-role-credentials --account-id="${ACCOUNT_ID}" --role-name="${ACCOUNT_ROLE_NAME}" --access-token="${ACCESS_TOKEN}")"
+~~The current implementation depends (partially) on [Rusoto](https://github.com/rusoto/rusoto) which does not work well with AWS profiles.
+As a workaround you can export (temporary) tokens and use those as following:~~
 
-export AWS_ACCESS_KEY_ID="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredentials.accessKeyId")"
-export AWS_SECRET_ACCESS_KEY="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredentials.secretAccessKey")"
-export AWS_SESSION_TOKEN="$(echo "${ROLE_CREDENTIALS}" | jq -r ".roleCredentials.sessionToken")"
-```
+The deltalake implementation has been reworked and (re-)uses the credentials which are acquired by [aws_config](https://docs.rs/aws-config/latest/aws_config/).
 
 ```
 qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT
