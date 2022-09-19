@@ -1,16 +1,16 @@
 use anyhow::Result;
+use aws_types::credentials::*;
 use camino::Utf8PathBuf;
 use clap::Parser;
-use datafusion::prelude::*;
-use std::sync::Arc;
-use aws_types::credentials::*;
 use datafusion::common::DataFusionError;
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::datasource::object_store::ObjectStoreUrl;
-use object_store::aws::AmazonS3Builder;
-use std::collections::HashMap;
+use datafusion::prelude::*;
 use deltalake::storage::DeltaObjectStore;
 use deltalake::{DeltaTable, DeltaTableConfig, StorageUrl};
+use object_store::aws::AmazonS3Builder;
+use std::collections::HashMap;
+use std::sync::Arc;
 use url::Url;
 
 #[derive(Parser, Debug)]
