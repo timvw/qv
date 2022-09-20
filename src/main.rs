@@ -24,45 +24,54 @@ use url::Url;
 async fn main() -> Result<()> {
     let args = Args::parse();
 
+    let data_location = update_s3_console_url(&args.path)?;
+
     if let Some(aws_profile) = args.profile {
         env::set_var("AWS_PROFILE", aws_profile);
     }
 
-    let data_location = update_s3_console_url(&args.path)?;
-
-    let (object_store_url, _) = extract_object_store_url_and_path(&data_location)?;
-    let bucket_name = String::from(
-        Url::parse(object_store_url.as_str())
-            .expect("failed to parse object_store_url")
-            .host_str()
-            .expect("failed to extract host/bucket from path"),
-    );
-
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::with_config(config);
 
-    let sdk_config = aws_config::load_from_env().await;
+    // we're not always querying data on s3..
+    if data_location.starts_with("s3://") {
+        let (object_store_url, _) = extract_object_store_url_and_path(&data_location)?;
+        let bucket_name = String::from(
+            Url::parse(object_store_url.as_str())
+                .expect("failed to parse object_store_url")
+                .host_str()
+                .expect("failed to extract host/bucket from path"),
+        );
 
-    let s3 = build_s3_from_sdk_config(&bucket_name, &sdk_config).await?;
+        let sdk_config = aws_config::load_from_env().await;
+        let s3 = build_s3_from_sdk_config(&bucket_name, &sdk_config).await?;
+        ctx.runtime_env()
+            .register_object_store("s3", &bucket_name, Arc::new(s3));
 
-    ctx.runtime_env()
-        .register_object_store("s3", &bucket_name, Arc::new(s3));
-
-    let table_arc: Arc<dyn TableProvider> = if contains_glob_start_character(&data_location) {
-        let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
-        Arc::new(table)
-    } else {
-        let delta_table_load_result =
-            load_delta_table(&data_location, &object_store_url, &ctx).await;
-        match delta_table_load_result {
-            Ok(delta_table) => Arc::new(delta_table),
-            Err(_) => {
-                let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
-                Arc::new(table)
+        let table_arc: Arc<dyn TableProvider> = if contains_glob_start_character(&data_location) {
+            let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
+            Arc::new(table)
+        } else {
+            let delta_table_load_result =
+                load_delta_table(&data_location, &object_store_url, &ctx).await;
+            match delta_table_load_result {
+                Ok(delta_table) => Arc::new(delta_table),
+                Err(_) => {
+                    let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
+                    Arc::new(table)
+                }
             }
-        }
-    };
-    ctx.register_table("tbl", table_arc)?;
+        };
+        ctx.register_table("tbl", table_arc)?;
+    } else {
+        let lturl = ListingTableUrl::parse(&data_location)?;
+        let mut config = ListingTableConfig::new(lturl);
+        config = config.infer_options(&ctx.state()).await?;
+        config = config.infer_schema(&ctx.state()).await?;
+        let table = ListingTable::try_new(config)?;
+        let table_arc = Arc::new(table);
+        ctx.register_table("tbl", table_arc)?;
+    }
 
     let query = if args.schema {
         "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'tbl'"
