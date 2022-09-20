@@ -16,12 +16,17 @@ use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::path::Path;
 use object_store::ObjectMeta;
 use std::collections::HashMap;
+use std::env;
 use std::sync::Arc;
 use url::Url;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+
+    if let Some(aws_profile) = args.profile {
+        env::set_var("AWS_PROFILE", aws_profile);
+    }
 
     let data_location = update_s3_console_url(&args.path)?;
 
@@ -255,6 +260,10 @@ struct Args {
     /// Rows to return
     #[clap(short, long, default_value_t = 10)]
     limit: usize,
+
+    /// Optional AWS Profile to use
+    #[clap(short, long)]
+    profile: Option<String>,
 }
 
 #[cfg(test)]
