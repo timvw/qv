@@ -33,9 +33,10 @@ async fn main() -> Result<()> {
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::with_config(config);
 
-    // we're not always querying data on s3..
+    let data_location_with_scheme = ensure_scheme(&data_location)?;
+    let (object_store_url, prefix, maybe_glob) = extract_path_parts(&data_location_with_scheme)?;
+
     if data_location.starts_with("s3://") {
-        let (object_store_url, _) = extract_object_store_url_and_path(&data_location)?;
         let bucket_name = String::from(
             Url::parse(object_store_url.as_str())
                 .expect("failed to parse object_store_url")
@@ -47,31 +48,23 @@ async fn main() -> Result<()> {
         let s3 = build_s3_from_sdk_config(&bucket_name, &sdk_config).await?;
         ctx.runtime_env()
             .register_object_store("s3", &bucket_name, Arc::new(s3));
-
-        let table_arc: Arc<dyn TableProvider> = if contains_glob_start_character(&data_location) {
-            let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
-            Arc::new(table)
-        } else {
-            let delta_table_load_result =
-                load_delta_table(&data_location, &object_store_url, &ctx).await;
-            match delta_table_load_result {
-                Ok(delta_table) => Arc::new(delta_table),
-                Err(_) => {
-                    let table = load_listing_table(&data_location, &ctx, &bucket_name).await?;
-                    Arc::new(table)
-                }
-            }
-        };
-        ctx.register_table("tbl", table_arc)?;
-    } else {
-        let lturl = ListingTableUrl::parse(&data_location)?;
-        let mut config = ListingTableConfig::new(lturl);
-        config = config.infer_options(&ctx.state()).await?;
-        config = config.infer_schema(&ctx.state()).await?;
-        let table = ListingTable::try_new(config)?;
-        let table_arc = Arc::new(table);
-        ctx.register_table("tbl", table_arc)?;
     }
+
+    let table_arc: Arc<dyn TableProvider> = if let Some(_) = &maybe_glob {
+        let table = load_listing_table(&ctx, &object_store_url, &prefix, &maybe_glob).await?;
+        Arc::new(table)
+    } else {
+        let delta_table_load_result =
+            load_delta_table(&data_location, &object_store_url, &ctx).await;
+        match delta_table_load_result {
+            Ok(delta_table) => Arc::new(delta_table),
+            Err(_) => {
+                let table = load_listing_table(&ctx, &object_store_url, &prefix, &maybe_glob).await?;
+                Arc::new(table)
+            }
+        }
+    };
+    ctx.register_table("tbl", table_arc)?;
 
     let query = if args.schema {
         "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'tbl'"
@@ -110,8 +103,9 @@ async fn build_s3_from_sdk_config(
 
     let s3 = match credentials.session_token() {
         Some(session_token) => s3_builder.with_token(session_token),
-        None => s3_builder
-    }.build()?;
+        None => s3_builder,
+    }
+    .build()?;
 
     Ok(s3)
 }
@@ -146,30 +140,109 @@ fn update_s3_console_url(path: &str) -> Result<String> {
     }
 }
 
-fn extract_object_store_url_and_path(globbing_path: &str) -> Result<(ObjectStoreUrl, String)> {
-    let url = match Url::parse(globbing_path) {
-        Ok(url) => Ok(url),
-        Err(ParseError::RelativeUrlWithoutBase) => {
-            let path = std::path::Path::new(globbing_path).canonicalize()?;
-            if path.is_file() {
-                Ok(Url::from_file_path(path).unwrap())
-            } else {
-                Ok(Url::from_directory_path(path).unwrap())
-            }
-        },
-        Err(e) => Err(e),
-    }.map_err(|e| DataFusionError::Execution(format!("Failed to parse {} because {}", globbing_path, e)))?;
-
-    let (osu, path) = if url.scheme() == "file" {
-        let osu = ObjectStoreUrl::parse("file:///")?;
-        let path = &url[url::Position::AfterScheme..];
-        (osu, path)
-    } else {
-        let osu = ObjectStoreUrl::parse(&url[url::Position::BeforeScheme..url::Position::BeforePath])?;
-        let path = url.path();
-        (osu, path)
+fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, String, Option<Pattern>)> {
+    let (non_globbed_path, maybe_globbed_path) = match split_glob_expression(path_with_scheme) {
+        Some((non_globbed, globbed)) => (non_globbed, Some(globbed)),
+        None => (path_with_scheme, None),
     };
-    Ok((osu, String::from(path.strip_prefix(object_store::path::DELIMITER).unwrap_or_else(|| url.path()))))
+
+    let non_globbed_url = Url::parse(non_globbed_path)?;
+    let (object_store_url, prefix) = match non_globbed_url.scheme() {
+        "file" => ObjectStoreUrl::parse("file://").map(|osu| (osu, non_globbed_url.path())),
+        "s3" => ObjectStoreUrl::parse(&non_globbed_url[..url::Position::BeforePath])
+            .map(|osu| (osu, non_globbed_url.path())),
+        _ => Err(DataFusionError::NotImplemented(format!(
+            "no support scheme {}.",
+            non_globbed_url.scheme()
+        ))),
+    }?;
+
+    let prefix_without_leading_delimiter = prefix.strip_prefix("/").unwrap_or(prefix);
+    let maybe_glob = maybe_globbed_path
+        .map(|globbed_path| format!("{}{}", &prefix_without_leading_delimiter, globbed_path));
+
+    let maybe_result = maybe_glob.map(|glob| {
+        Pattern::new(&glob).map_err(|_| {
+            DataFusionError::Execution(format!("Failed to parse {} as a globbing pattern", &glob))
+        })
+    });
+
+    match maybe_result {
+        Some(Ok(pattern)) => Ok((
+            object_store_url,
+            String::from(prefix_without_leading_delimiter),
+            Some(pattern),
+        )),
+        Some(Err(e)) => Err(anyhow::Error::from(e)),
+        None => Ok((
+            object_store_url,
+            String::from(prefix_without_leading_delimiter),
+            None,
+        )),
+    }
+}
+
+#[test]
+fn test_extract_path_parts() {
+    let actual = extract_path_parts("s3://bucket").unwrap();
+    assert_eq!("s3://bucket/", actual.0.as_str());
+    assert_eq!("", actual.1);
+    assert_eq!(None, actual.2);
+
+    let actual = extract_path_parts("s3://bucket/").unwrap();
+    assert_eq!("s3://bucket/", actual.0.as_str());
+    assert_eq!("", actual.1);
+    assert_eq!(None, actual.2);
+
+    let actual = extract_path_parts("s3://bucket/a").unwrap();
+    assert_eq!("s3://bucket/", actual.0.as_str());
+    assert_eq!("a", actual.1);
+    assert_eq!(None, actual.2);
+
+    let actual = extract_path_parts("s3://bucket/a*").unwrap();
+    assert_eq!("s3://bucket/", actual.0.as_str());
+    assert_eq!("", actual.1);
+    assert_eq!(Some(Pattern::new("a*").unwrap()), actual.2);
+
+    let actual = extract_path_parts("s3://bucket/a/b*").unwrap();
+    assert_eq!("s3://bucket/", actual.0.as_str());
+    assert_eq!("a/", actual.1);
+    assert_eq!(Some(Pattern::new("a/b*").unwrap()), actual.2);
+
+    let actual = extract_path_parts("s3://bucket/a/b*/c").unwrap();
+    assert_eq!("s3://bucket/", actual.0.as_str());
+    assert_eq!("a/", actual.1);
+    assert_eq!(Some(Pattern::new("a/b*/c").unwrap()), actual.2);
+
+    let actual = extract_path_parts("file://").unwrap();
+    assert_eq!("file:///", actual.0.as_str());
+    assert_eq!("", actual.1);
+    assert_eq!(None, actual.2);
+
+    let actual = extract_path_parts("file:///a").unwrap();
+    assert_eq!("file:///", actual.0.as_str());
+    assert_eq!("a", actual.1);
+    assert_eq!(None, actual.2);
+
+    let actual = extract_path_parts("file:///c/b").unwrap();
+    assert_eq!("file:///", actual.0.as_str());
+    assert_eq!("c/b", actual.1);
+    assert_eq!(None, actual.2);
+
+    let actual = extract_path_parts("file:///c/b*").unwrap();
+    assert_eq!("file:///", actual.0.as_str());
+    assert_eq!("c/", actual.1);
+    assert_eq!(Some(Pattern::new("c/b*").unwrap()), actual.2);
+
+    let actual = extract_path_parts("file://c*").unwrap();
+    assert_eq!("file:///", actual.0.as_str());
+    assert_eq!("", actual.1);
+    assert_eq!(Some(Pattern::new("c*").unwrap()), actual.2);
+
+    let actual = extract_path_parts("file:///a/b*/c").unwrap();
+    assert_eq!("file:///", actual.0.as_str());
+    assert_eq!("a/", actual.1);
+    assert_eq!(Some(Pattern::new("a/b*/c").unwrap()), actual.2);
 }
 
 async fn load_delta_table(
@@ -187,16 +260,21 @@ async fn load_delta_table(
 }
 
 async fn load_listing_table(
-    data_location: &str,
     ctx: &SessionContext,
-    bucket_name: &str,
+    object_store_url: &ObjectStoreUrl,
+    prefix: &str,
+    maybe_glob: &Option<Pattern>,
 ) -> Result<ListingTable> {
-    let matching_files = list_matching_files(ctx, data_location).await?;
+
+    //     // now resolve the object store...
+    //     let object_store = ctx.runtime_env().object_store(&object_store_url)?;
+
+    let matching_files = list_matching_files(ctx, object_store_url, prefix, maybe_glob).await?;
 
     let matching_file_urls: Vec<_> = matching_files
         .iter()
         .map(|meta| {
-            ListingTableUrl::parse(format!("s3://{}/{}", bucket_name, meta.location.as_ref()))
+            ListingTableUrl::parse(format!("{}{}", object_store_url.as_str(), meta.location.as_ref()))
                 .expect("failed to create listingtableurl")
         })
         .collect();
@@ -208,18 +286,9 @@ async fn load_listing_table(
     Ok(table)
 }
 
-async fn list_matching_files(ctx: &SessionContext, globbing_path: &str) -> Result<Vec<ObjectMeta>> {
-    let (object_store_url, path) = extract_object_store_url_and_path(globbing_path)?;
-    let prefix_path = extract_leading_path_without_glob_characters(&path);
+async fn list_matching_files(ctx: &SessionContext, object_store_url: &ObjectStoreUrl, prefix: &str, maybe_glob: &Option<Pattern>) -> Result<Vec<ObjectMeta>> {
 
-    let maybe_glob = if contains_glob_start_character(&path) {
-        let glob = Pattern::new(&path).map_err(|_| {
-            DataFusionError::Execution(format!("Failed to create globbing pattern from {}", &path))
-        })?;
-        Some(glob)
-    } else {
-        None
-    };
+    let prefix_path = Path::parse(prefix)?;
 
     let store = ctx.runtime_env().object_store(&object_store_url)?;
 
@@ -251,18 +320,6 @@ fn is_hidden(path: &Path) -> bool {
     path.parts()
         .find(|part| part.as_ref().starts_with('.') || part.as_ref().starts_with('_'))
         .map_or_else(|| false, |_| true)
-}
-
-fn contains_glob_start_character(item: &str) -> bool {
-    item.contains('?') || item.contains('*') || item.contains('[')
-}
-
-fn extract_leading_path_without_glob_characters(path: &str) -> Path {
-    let leading_path_parts_without_glob: Vec<_> = path
-        .split(object_store::path::DELIMITER)
-        .take_while(|part| !contains_glob_start_character(part))
-        .collect();
-    Path::from_iter(leading_path_parts_without_glob)
 }
 
 #[derive(Parser, Debug)]
@@ -303,11 +360,12 @@ fn test_update_s3_console_url() -> Result<()> {
 
 // what do we need? an object_store_url, a prefix and a glob
 
-fn ensure_scheme(path: &str) -> Result<String, DataFusionError> {
-
-    let (non_globbed_path, maybe_globbed_path) = match split_glob_expression(path) {
+/// Update the data_location such that it starts with a scheme
+/// In case no scheme is provided, we assume the data_location is a (globbing) expression on the local filesystem.
+fn ensure_scheme(data_location: &str) -> Result<String, DataFusionError> {
+    let (non_globbed_path, maybe_globbed_path) = match split_glob_expression(data_location) {
         Some((non_globbed, globbed)) => (non_globbed, Some(globbed)),
-        None => (path, None)
+        None => (data_location, None),
     };
 
     let non_globbed_path_with_scheme = match Url::parse(non_globbed_path) {
@@ -319,14 +377,22 @@ fn ensure_scheme(path: &str) -> Result<String, DataFusionError> {
             } else {
                 Url::from_directory_path(&local_path)
             }
-            .map_err(|_| DataFusionError::Execution(format!("failed to build url from file path for {:?}", &local_path)))
-        },
-        Err(e) => Err(DataFusionError::Execution(format!("Failed to parse {} as url because {}", path, e)))
+            .map_err(|_| {
+                DataFusionError::Execution(format!(
+                    "failed to build url from file path for {:?}",
+                    &local_path
+                ))
+            })
+        }
+        Err(e) => Err(DataFusionError::Execution(format!(
+            "Failed to parse {} as url because {}",
+            data_location, e
+        ))),
     }?;
 
     let path_with_scheme = match maybe_globbed_path {
         Some(globbed_path) => format!("{}{}", non_globbed_path_with_scheme.as_str(), globbed_path),
-        None => String::from(non_globbed_path_with_scheme.as_str())
+        None => String::from(non_globbed_path_with_scheme.as_str()),
     };
 
     Ok(path_with_scheme)
@@ -357,8 +423,6 @@ fn test_ensure_scheme() {
     assert!(actual_relative_dir_glob.ends_with("s*c"));
 }
 
-const GLOB_START_CHARS: [char; 3] = ['?', '*', '['];
-
 /// Splits `path` at the first path segment containing a glob expression, returning
 /// `None` if no glob expression found.
 ///
@@ -366,6 +430,8 @@ const GLOB_START_CHARS: [char; 3] = ['?', '*', '['];
 /// permits `/` as a path delimiter even on Windows platforms.
 ///
 fn split_glob_expression(path: &str) -> Option<(&str, &str)> {
+    const GLOB_START_CHARS: [char; 3] = ['?', '*', '['];
+
     let mut last_separator = 0;
 
     for (byte_idx, char) in path.char_indices() {
@@ -381,26 +447,4 @@ fn split_glob_expression(path: &str) -> Option<(&str, &str)> {
         }
     }
     None
-}
-
-#[test]
-fn test_extract_object_store_url_and_path() {
-
-    let actual = extract_object_store_url_and_path("s3://bucket").unwrap();
-    assert_eq!(("s3://bucket/", ""), (actual.0.as_str(), actual.1.as_str()));
-
-    let actual = extract_object_store_url_and_path("s3://bucket/").unwrap();
-    assert_eq!(("s3://bucket/", ""), (actual.0.as_str(), actual.1.as_str()));
-
-    let actual = extract_object_store_url_and_path("s3://bucket/path").unwrap();
-    assert_eq!(
-        ("s3://bucket/", "path"),
-        (actual.0.as_str(), actual.1.as_str())
-    );
-
-    let actual = extract_object_store_url_and_path("file://a.txt").unwrap();
-    assert_eq!(("file:///", "a.txt"), (actual.0.as_str(), actual.1.as_str()));
-
-    let actual = extract_object_store_url_and_path("a.txt").unwrap();
-    assert_eq!(("file:///", "a.txt"), (actual.0.as_str(), actual.1.as_str()));
 }
