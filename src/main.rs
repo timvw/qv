@@ -18,7 +18,7 @@ use object_store::ObjectMeta;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
-use url::Url;
+use url::{ParseError, Url};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -147,16 +147,29 @@ fn update_s3_console_url(path: &str) -> Result<String> {
 }
 
 fn extract_object_store_url_and_path(globbing_path: &str) -> Result<(ObjectStoreUrl, String)> {
-    let url = Url::parse(globbing_path).map_err(|_| {
-        DataFusionError::Execution(format!("Failed to parse {} as url.", &globbing_path))
-    })?;
-    let bucket = &url[..url::Position::BeforePath];
-    let bucket_url = ObjectStoreUrl::parse(&bucket)?;
-    let path = url
-        .path()
-        .strip_prefix(object_store::path::DELIMITER)
-        .unwrap_or_else(|| url.path());
-    Ok((bucket_url, String::from(path)))
+    let url = match Url::parse(globbing_path) {
+        Ok(url) => Ok(url),
+        Err(ParseError::RelativeUrlWithoutBase) => {
+            let path = std::path::Path::new(globbing_path).canonicalize()?;
+            if path.is_file() {
+                Ok(Url::from_file_path(path).unwrap())
+            } else {
+                Ok(Url::from_directory_path(path).unwrap())
+            }
+        },
+        Err(e) => Err(e),
+    }.map_err(|e| DataFusionError::Execution(format!("Failed to parse {} because {}", globbing_path, e)))?;
+
+    let (osu, path) = if url.scheme() == "file" {
+        let osu = ObjectStoreUrl::parse("file:///")?;
+        let path = &url[url::Position::AfterScheme..];
+        (osu, path)
+    } else {
+        let osu = ObjectStoreUrl::parse(&url[url::Position::BeforeScheme..url::Position::BeforePath])?;
+        let path = url.path();
+        (osu, path)
+    };
+    Ok((osu, String::from(path.strip_prefix(object_store::path::DELIMITER).unwrap_or_else(|| url.path()))))
 }
 
 async fn load_delta_table(
@@ -275,34 +288,119 @@ struct Args {
     profile: Option<String>,
 }
 
-#[cfg(test)]
-mod tests {
+#[test]
+fn test_update_s3_console_url() -> Result<()> {
+    assert_eq!(
+        update_s3_console_url("/Users/timvw/test")?,
+        "/Users/timvw/test"
+    );
+    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
+    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
+    Ok(())
+}
 
-    use super::*;
+// So how do we want to proceed???
 
-    #[test]
-    fn test_update_s3_console_url() -> Result<()> {
-        assert_eq!(
-            update_s3_console_url("/Users/timvw/test")?,
-            "/Users/timvw/test"
-        );
-        assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
-        assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
-        Ok(())
+// what do we need? an object_store_url, a prefix and a glob
+
+fn ensure_scheme(path: &str) -> Result<String, DataFusionError> {
+
+    let (non_globbed_path, maybe_globbed_path) = match split_glob_expression(path) {
+        Some((non_globbed, globbed)) => (non_globbed, Some(globbed)),
+        None => (path, None)
+    };
+
+    let non_globbed_path_with_scheme = match Url::parse(non_globbed_path) {
+        Ok(url) => Ok(url),
+        Err(ParseError::RelativeUrlWithoutBase) => {
+            let local_path = std::path::Path::new(non_globbed_path).canonicalize()?;
+            if local_path.is_file() {
+                Url::from_file_path(&local_path)
+            } else {
+                Url::from_directory_path(&local_path)
+            }
+            .map_err(|_| DataFusionError::Execution(format!("failed to build url from file path for {:?}", &local_path)))
+        },
+        Err(e) => Err(DataFusionError::Execution(format!("Failed to parse {} as url because {}", path, e)))
+    }?;
+
+    let path_with_scheme = match maybe_globbed_path {
+        Some(globbed_path) => format!("{}{}", non_globbed_path_with_scheme.as_str(), globbed_path),
+        None => String::from(non_globbed_path_with_scheme.as_str())
+    };
+
+    Ok(path_with_scheme)
+}
+
+#[test]
+fn test_ensure_scheme() {
+    assert_eq!("s3://", ensure_scheme("s3://").unwrap());
+    assert_eq!("s3://bucket", ensure_scheme("s3://bucket").unwrap());
+    assert_eq!("s3://bucket/a", ensure_scheme("s3://bucket/a").unwrap());
+    assert_eq!("file:///", ensure_scheme("file:///").unwrap());
+    assert_eq!("file:///a", ensure_scheme("file:///a").unwrap());
+
+    let actual_relative_file = ensure_scheme("src/main.rs").unwrap();
+    assert!(actual_relative_file.starts_with("file:///"));
+    assert!(actual_relative_file.ends_with("src/main.rs"));
+
+    let actual_relative_dir = ensure_scheme("src").unwrap();
+    assert!(actual_relative_dir.starts_with("file:///"));
+    assert!(actual_relative_dir.ends_with("src/"));
+
+    let actual_relative_file_glob = ensure_scheme("src/ma*.rs").unwrap();
+    assert!(actual_relative_file_glob.starts_with("file:///"));
+    assert!(actual_relative_file_glob.ends_with("src/ma*.rs"));
+
+    let actual_relative_dir_glob = ensure_scheme("s*c").unwrap();
+    assert!(actual_relative_dir_glob.starts_with("file:///"));
+    assert!(actual_relative_dir_glob.ends_with("s*c"));
+}
+
+const GLOB_START_CHARS: [char; 3] = ['?', '*', '['];
+
+/// Splits `path` at the first path segment containing a glob expression, returning
+/// `None` if no glob expression found.
+///
+/// Path delimiters are determined using [`std::path::is_separator`] which
+/// permits `/` as a path delimiter even on Windows platforms.
+///
+fn split_glob_expression(path: &str) -> Option<(&str, &str)> {
+    let mut last_separator = 0;
+
+    for (byte_idx, char) in path.char_indices() {
+        if GLOB_START_CHARS.contains(&char) {
+            if last_separator == 0 {
+                return Some((".", path));
+            }
+            return Some(path.split_at(last_separator));
+        }
+
+        if std::path::is_separator(char) {
+            last_separator = byte_idx + char.len_utf8();
+        }
     }
+    None
+}
 
-    #[test]
-    fn test_extract_object_store_url_and_path() {
-        let actual = extract_object_store_url_and_path("s3://bucket").unwrap();
-        assert_eq!(("s3://bucket/", ""), (actual.0.as_str(), actual.1.as_str()));
+#[test]
+fn test_extract_object_store_url_and_path() {
 
-        let actual = extract_object_store_url_and_path("s3://bucket/").unwrap();
-        assert_eq!(("s3://bucket/", ""), (actual.0.as_str(), actual.1.as_str()));
+    let actual = extract_object_store_url_and_path("s3://bucket").unwrap();
+    assert_eq!(("s3://bucket/", ""), (actual.0.as_str(), actual.1.as_str()));
 
-        let actual = extract_object_store_url_and_path("s3://bucket/path").unwrap();
-        assert_eq!(
-            ("s3://bucket/", "path"),
-            (actual.0.as_str(), actual.1.as_str())
-        );
-    }
+    let actual = extract_object_store_url_and_path("s3://bucket/").unwrap();
+    assert_eq!(("s3://bucket/", ""), (actual.0.as_str(), actual.1.as_str()));
+
+    let actual = extract_object_store_url_and_path("s3://bucket/path").unwrap();
+    assert_eq!(
+        ("s3://bucket/", "path"),
+        (actual.0.as_str(), actual.1.as_str())
+    );
+
+    let actual = extract_object_store_url_and_path("file://a.txt").unwrap();
+    assert_eq!(("file:///", "a.txt"), (actual.0.as_str(), actual.1.as_str()));
+
+    let actual = extract_object_store_url_and_path("a.txt").unwrap();
+    assert_eq!(("file:///", "a.txt"), (actual.0.as_str(), actual.1.as_str()));
 }
