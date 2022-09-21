@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
             .register_object_store("s3", &bucket_name, Arc::new(s3));
     }
 
-    let table_arc: Arc<dyn TableProvider> = if let Some(_) = &maybe_glob {
+    let table_arc: Arc<dyn TableProvider> = if maybe_glob.is_some() {
         let table = load_listing_table(&ctx, &object_store_url, &prefix, &maybe_glob).await?;
         Arc::new(table)
     } else {
@@ -59,7 +59,8 @@ async fn main() -> Result<()> {
         match delta_table_load_result {
             Ok(delta_table) => Arc::new(delta_table),
             Err(_) => {
-                let table = load_listing_table(&ctx, &object_store_url, &prefix, &maybe_glob).await?;
+                let table =
+                    load_listing_table(&ctx, &object_store_url, &prefix, &maybe_glob).await?;
                 Arc::new(table)
             }
         }
@@ -157,7 +158,7 @@ fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, String,
         ))),
     }?;
 
-    let prefix_without_leading_delimiter = prefix.strip_prefix("/").unwrap_or(prefix);
+    let prefix_without_leading_delimiter = prefix.strip_prefix('/').unwrap_or(prefix);
     let maybe_glob = maybe_globbed_path
         .map(|globbed_path| format!("{}{}", &prefix_without_leading_delimiter, globbed_path));
 
@@ -265,7 +266,6 @@ async fn load_listing_table(
     prefix: &str,
     maybe_glob: &Option<Pattern>,
 ) -> Result<ListingTable> {
-
     //     // now resolve the object store...
     //     let object_store = ctx.runtime_env().object_store(&object_store_url)?;
 
@@ -274,8 +274,12 @@ async fn load_listing_table(
     let matching_file_urls: Vec<_> = matching_files
         .iter()
         .map(|meta| {
-            ListingTableUrl::parse(format!("{}{}", object_store_url.as_str(), meta.location.as_ref()))
-                .expect("failed to create listingtableurl")
+            ListingTableUrl::parse(format!(
+                "{}{}",
+                object_store_url.as_str(),
+                meta.location.as_ref()
+            ))
+            .expect("failed to create listingtableurl")
         })
         .collect();
 
@@ -286,8 +290,12 @@ async fn load_listing_table(
     Ok(table)
 }
 
-async fn list_matching_files(ctx: &SessionContext, object_store_url: &ObjectStoreUrl, prefix: &str, maybe_glob: &Option<Pattern>) -> Result<Vec<ObjectMeta>> {
-
+async fn list_matching_files(
+    ctx: &SessionContext,
+    object_store_url: &ObjectStoreUrl,
+    prefix: &str,
+    maybe_glob: &Option<Pattern>,
+) -> Result<Vec<ObjectMeta>> {
     let prefix_path = Path::parse(prefix)?;
 
     let store = ctx.runtime_env().object_store(&object_store_url)?;
