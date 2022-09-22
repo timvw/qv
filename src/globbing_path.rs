@@ -119,12 +119,8 @@ fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, Path, O
         Url::parse(non_globbed_path).map_err(|e| DataFusionError::External(Box::new(e)))?;
     let (object_store_url, prefix) = match non_globbed_url.scheme() {
         "file" => ObjectStoreUrl::parse("file://").map(|osu| (osu, non_globbed_url.path())),
-        "s3" => ObjectStoreUrl::parse(&non_globbed_url[..url::Position::BeforePath])
+        _ => ObjectStoreUrl::parse(&non_globbed_url[url::Position::BeforeScheme..url::Position::BeforePath])
             .map(|osu| (osu, non_globbed_url.path())),
-        _ => Err(DataFusionError::NotImplemented(format!(
-            "no support scheme {}.",
-            non_globbed_url.scheme()
-        ))),
     }?;
 
     let prefix_without_leading_delimiter = prefix.strip_prefix('/').unwrap_or(prefix);
