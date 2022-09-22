@@ -6,7 +6,6 @@ on:
 jobs:
 
   build_assets_and_add_to_release:
-    needs: create_draft_release
     uses: ./.github/workflows/build_assets_and_add_to_release.yml
     with:
       app_name: "qv"
