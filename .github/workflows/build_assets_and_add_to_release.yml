@@ -88,7 +88,7 @@ jobs:
       -
         name: Upload binaries to release
         uses: softprops/action-gh-release@v1
-        if: ${{ inputs.add_to_release == "true" }}
+        if: ${{ inputs.add_to_release }} == "true"
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: ${{ inputs.app_name }}-${{ inputs.version }}-${{ matrix.config.target }}-${{ matrix.config.target_cpu }}.*
