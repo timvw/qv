@@ -1,7 +1,7 @@
 use crate::object_store_util::*;
 use crate::GlobbingPath;
 use anyhow::Result;
-use datafusion::datasource::listing::{ListingTable, ListingTableConfig};
+use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::datasource::TableProvider;
 use datafusion::prelude::SessionContext;
@@ -41,12 +41,7 @@ async fn load_listing_table(
     ctx: &SessionContext,
     globbing_path: &GlobbingPath,
 ) -> Result<ListingTable> {
-    let matching_files = list_glob_matching_files(ctx, globbing_path).await?;
-    let matching_file_urls: Vec<_> = matching_files
-        .iter()
-        .map(|x| globbing_path.build_listing_table_url(x))
-        .collect();
-
+    let matching_file_urls = list_matching_table_urls(ctx, globbing_path).await?;
     let mut config = ListingTableConfig::new_with_multi_paths(matching_file_urls);
     config = config.infer_options(&ctx.state()).await?;
     config = config.infer_schema(&ctx.state()).await?;
@@ -54,10 +49,10 @@ async fn load_listing_table(
     Ok(table)
 }
 
-async fn list_glob_matching_files(
+async fn list_matching_table_urls(
     ctx: &SessionContext,
     globbing_path: &GlobbingPath,
-) -> Result<Vec<ObjectMeta>> {
+) -> Result<Vec<ListingTableUrl>> {
     let store = globbing_path.get_store(ctx)?;
 
     let predicate = |meta: &ObjectMeta| {
@@ -70,7 +65,14 @@ async fn list_glob_matching_files(
         visible && glob_ok
     };
 
-    list_matching_files(store, &globbing_path.prefix, predicate).await
+    let matching_files = list_matching_files(store, &globbing_path.prefix, predicate).await?;
+
+    let matching_listing_table_urls = matching_files
+        .iter()
+        .map(|x| globbing_path.build_listing_table_url(x))
+        .collect();
+
+    Ok(matching_listing_table_urls)
 }
 
 async fn load_delta_table(
