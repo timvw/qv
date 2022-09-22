@@ -78,8 +78,22 @@ where
     Ok(filtered_items)
 }
 
+/// Determines whether a file is "hidden"
 pub fn is_hidden(path: &Path) -> bool {
     path.parts()
         .find(|part| part.as_ref().starts_with('.') || part.as_ref().starts_with('_'))
         .map_or_else(|| false, |_| true)
+}
+
+#[test]
+fn test_is_hidden() {
+    assert!(!is_hidden(&Path::parse("a").unwrap()));
+    assert!(!is_hidden(&Path::parse("a/b").unwrap()));
+    assert!(is_hidden(&Path::parse(".hidden").unwrap()));
+    assert!(is_hidden(&Path::parse("_hidden").unwrap()));
+    assert!(is_hidden(&Path::parse("a/.hidden").unwrap()));
+    assert!(is_hidden(&Path::parse("a/_hidden").unwrap()));
+    assert!(is_hidden(&Path::parse("a/.hidden/b").unwrap()));
+    assert!(is_hidden(&Path::parse("a/_hidden/b").unwrap()));
+    assert!(is_hidden(&Path::parse("a/.hidden/b").unwrap()));
 }
