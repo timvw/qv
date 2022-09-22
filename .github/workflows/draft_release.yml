@@ -63,5 +63,4 @@ jobs:
       version: ${{ github.event.inputs.version }}
       commitish: ${{ needs.create_draft_release.outputs.commitish }}
       tag_name: v${{ github.event.inputs.version }}
-      add_to_release: "true"
 
