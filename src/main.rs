@@ -9,12 +9,11 @@ use datafusion::prelude::*;
 use deltalake::datafusion::datasource::TableProvider;
 use deltalake::storage::DeltaObjectStore;
 use deltalake::{DeltaTable, DeltaTableConfig, DeltaTableError, StorageUrl};
-use futures::stream::BoxStream;
-use futures::{StreamExt, TryStreamExt};
+use futures::TryStreamExt;
 use glob::Pattern;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::path::Path;
-use object_store::ObjectMeta;
+use object_store::{ObjectMeta, ObjectStore};
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
@@ -141,7 +140,7 @@ fn update_s3_console_url(path: &str) -> Result<String> {
     }
 }
 
-fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, String, Option<Pattern>)> {
+fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, Path, Option<Pattern>)> {
     let (non_globbed_path, maybe_globbed_path) = match split_glob_expression(path_with_scheme) {
         Some((non_globbed, globbed)) => (non_globbed, Some(globbed)),
         None => (path_with_scheme, None),
@@ -168,18 +167,12 @@ fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, String,
         })
     });
 
+    let prefix_path = Path::parse(prefix_without_leading_delimiter)?;
+
     match maybe_result {
-        Some(Ok(pattern)) => Ok((
-            object_store_url,
-            String::from(prefix_without_leading_delimiter),
-            Some(pattern),
-        )),
+        Some(Ok(pattern)) => Ok((object_store_url, prefix_path, Some(pattern))),
         Some(Err(e)) => Err(anyhow::Error::from(e)),
-        None => Ok((
-            object_store_url,
-            String::from(prefix_without_leading_delimiter),
-            None,
-        )),
+        None => Ok((object_store_url, prefix_path, None)),
     }
 }
 
@@ -187,62 +180,62 @@ fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, String,
 fn test_extract_path_parts() {
     let actual = extract_path_parts("s3://bucket").unwrap();
     assert_eq!("s3://bucket/", actual.0.as_str());
-    assert_eq!("", actual.1);
+    assert_eq!("", actual.1.as_ref());
     assert_eq!(None, actual.2);
 
     let actual = extract_path_parts("s3://bucket/").unwrap();
     assert_eq!("s3://bucket/", actual.0.as_str());
-    assert_eq!("", actual.1);
+    assert_eq!("", actual.1.as_ref());
     assert_eq!(None, actual.2);
 
     let actual = extract_path_parts("s3://bucket/a").unwrap();
     assert_eq!("s3://bucket/", actual.0.as_str());
-    assert_eq!("a", actual.1);
+    assert_eq!("a", actual.1.as_ref());
     assert_eq!(None, actual.2);
 
     let actual = extract_path_parts("s3://bucket/a*").unwrap();
     assert_eq!("s3://bucket/", actual.0.as_str());
-    assert_eq!("", actual.1);
+    assert_eq!("", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("a*").unwrap()), actual.2);
 
     let actual = extract_path_parts("s3://bucket/a/b*").unwrap();
     assert_eq!("s3://bucket/", actual.0.as_str());
-    assert_eq!("a/", actual.1);
+    assert_eq!("a", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("a/b*").unwrap()), actual.2);
 
     let actual = extract_path_parts("s3://bucket/a/b*/c").unwrap();
     assert_eq!("s3://bucket/", actual.0.as_str());
-    assert_eq!("a/", actual.1);
+    assert_eq!("a", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("a/b*/c").unwrap()), actual.2);
 
     let actual = extract_path_parts("file://").unwrap();
     assert_eq!("file:///", actual.0.as_str());
-    assert_eq!("", actual.1);
+    assert_eq!("", actual.1.as_ref());
     assert_eq!(None, actual.2);
 
     let actual = extract_path_parts("file:///a").unwrap();
     assert_eq!("file:///", actual.0.as_str());
-    assert_eq!("a", actual.1);
+    assert_eq!("a", actual.1.as_ref());
     assert_eq!(None, actual.2);
 
     let actual = extract_path_parts("file:///c/b").unwrap();
     assert_eq!("file:///", actual.0.as_str());
-    assert_eq!("c/b", actual.1);
+    assert_eq!("c/b", actual.1.as_ref());
     assert_eq!(None, actual.2);
 
     let actual = extract_path_parts("file:///c/b*").unwrap();
     assert_eq!("file:///", actual.0.as_str());
-    assert_eq!("c/", actual.1);
+    assert_eq!("c", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("c/b*").unwrap()), actual.2);
 
     let actual = extract_path_parts("file://c*").unwrap();
     assert_eq!("file:///", actual.0.as_str());
-    assert_eq!("", actual.1);
+    assert_eq!("", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("c*").unwrap()), actual.2);
 
     let actual = extract_path_parts("file:///a/b*/c").unwrap();
     assert_eq!("file:///", actual.0.as_str());
-    assert_eq!("a/", actual.1);
+    assert_eq!("a", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("a/b*/c").unwrap()), actual.2);
 }
 
@@ -263,13 +256,14 @@ async fn load_delta_table(
 async fn load_listing_table(
     ctx: &SessionContext,
     object_store_url: &ObjectStoreUrl,
-    prefix: &str,
+    prefix: &Path,
     maybe_glob: &Option<Pattern>,
 ) -> Result<ListingTable> {
     //     // now resolve the object store...
     //     let object_store = ctx.runtime_env().object_store(&object_store_url)?;
 
-    let matching_files = list_matching_files(ctx, object_store_url, prefix, maybe_glob).await?;
+    let matching_files =
+        list_glob_matching_files(ctx, object_store_url, prefix, maybe_glob).await?;
 
     let matching_file_urls: Vec<_> = matching_files
         .iter()
@@ -290,38 +284,43 @@ async fn load_listing_table(
     Ok(table)
 }
 
-async fn list_matching_files(
-    ctx: &SessionContext,
-    object_store_url: &ObjectStoreUrl,
-    prefix: &str,
-    maybe_glob: &Option<Pattern>,
-) -> Result<Vec<ObjectMeta>> {
-    let prefix_path = Path::parse(prefix)?;
-
-    let store = ctx.runtime_env().object_store(&object_store_url)?;
-
-    let head_result = store.head(&prefix_path).await;
-    let matching_files: Vec<ObjectMeta> = match head_result {
-        Ok(om) => vec![om],
-        Err(_) => {
-            let list_result = store.list(Some(&prefix_path)).await?;
-
-            let matching_files_result: BoxStream<Result<ObjectMeta>> = list_result
-                .map_err(Into::into)
-                .try_filter(move |meta| {
-                    let glob_ok = maybe_glob
-                        .as_ref()
-                        .map_or_else(|| true, |glob| glob.matches(meta.location.as_ref()));
-                    let is_hidden = is_hidden(&meta.location);
-                    futures::future::ready(glob_ok && !is_hidden)
-                })
-                .boxed();
-
-            matching_files_result.try_collect().await?
-        }
+/// List all the objects with the given prefix and for which the predicate closure returns true.
+// Prefixes are evaluated on a path segment basis, i.e. foo/bar/ is a prefix of foo/bar/x but not of foo/bar_baz/x.
+async fn list_matching_files<P>(
+    store: Arc<dyn ObjectStore>,
+    prefix: &Path,
+    predicate: P,
+) -> Result<Vec<ObjectMeta>>
+where
+    P: FnMut(&ObjectMeta) -> bool,
+{
+    let items: Vec<ObjectMeta> = match store.head(prefix).await {
+        Ok(meta) => vec![meta],
+        Err(_) => store.list(Some(prefix)).await?.try_collect().await?,
     };
 
-    Ok(matching_files)
+    let filtered_items = items.into_iter().filter(predicate).collect();
+    Ok(filtered_items)
+}
+
+async fn list_glob_matching_files(
+    ctx: &SessionContext,
+    object_store_url: &ObjectStoreUrl,
+    prefix: &Path,
+    maybe_glob: &Option<Pattern>,
+) -> Result<Vec<ObjectMeta>> {
+    let store = ctx.runtime_env().object_store(&object_store_url)?;
+
+    let predicate = |meta: &ObjectMeta| {
+        let visible = !is_hidden(&meta.location);
+        let glob_ok = maybe_glob
+            .clone()
+            .map(|glob| glob.matches(meta.location.as_ref()))
+            .unwrap_or(true);
+        visible && glob_ok
+    };
+
+    list_matching_files(store, prefix, predicate).await
 }
 
 fn is_hidden(path: &Path) -> bool {
