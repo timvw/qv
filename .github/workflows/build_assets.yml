@@ -10,6 +10,6 @@ jobs:
     with:
       app_name: "qv"
       version: "0.1"
-      commitish: $GITHUB_SHA
+      commitish: ${{ env.GITHUB_SHA }}
       tag_name: "0.1"
       add_to_release: "false"
