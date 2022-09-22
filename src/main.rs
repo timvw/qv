@@ -15,6 +15,9 @@ use crate::object_store_util::register_object_store;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+
+    xxx
+
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::with_config(config);
 
