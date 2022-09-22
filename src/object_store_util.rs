@@ -1,6 +1,6 @@
-use anyhow::Result;
 use aws_types::credentials::ProvideCredentials;
 use aws_types::SdkConfig;
+use datafusion::common::Result;
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
 use futures::TryStreamExt;

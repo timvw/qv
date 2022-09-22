@@ -1,5 +1,5 @@
-use anyhow::Result;
 use clap::Parser;
+use datafusion::common::Result;
 use datafusion::prelude::*;
 use std::env;
 

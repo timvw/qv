@@ -1,12 +1,13 @@
 use crate::object_store_util::*;
 use crate::GlobbingPath;
-use anyhow::Result;
+use datafusion::common::Result;
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::datasource::TableProvider;
+use datafusion::error::DataFusionError;
 use datafusion::prelude::SessionContext;
 use deltalake::storage::DeltaObjectStore;
-use deltalake::{DeltaTable, DeltaTableConfig, DeltaTableError, StorageUrl};
+use deltalake::{DeltaTable, DeltaTableConfig, StorageUrl};
 use object_store::path::Path;
 use object_store::ObjectMeta;
 use std::sync::Arc;
@@ -79,7 +80,7 @@ async fn load_delta_table(
     ctx: &SessionContext,
     object_store_url: &ObjectStoreUrl,
     path: &Path,
-) -> Result<DeltaTable, DeltaTableError> {
+) -> Result<DeltaTable> {
     let store = ctx.runtime_env().object_store(&object_store_url)?;
     let data_location = format!("{}{}", &object_store_url.as_str(), &path.as_ref());
     let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
@@ -87,5 +88,7 @@ async fn load_delta_table(
     let delta_config = DeltaTableConfig::default();
     let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
     let delta_table_load_result = delta_table.load().await;
-    delta_table_load_result.map(|_| delta_table)
+    delta_table_load_result
+        .map(|_| delta_table)
+        .map_err(|dte| DataFusionError::External(Box::new(dte)))
 }

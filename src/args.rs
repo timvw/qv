@@ -1,6 +1,6 @@
 use crate::GlobbingPath;
-use anyhow::Result;
 use clap::Parser;
+use datafusion::common::Result;
 use std::collections::HashMap;
 use url::Url;
 

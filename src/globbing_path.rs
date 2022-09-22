@@ -1,5 +1,4 @@
-use anyhow::Result;
-use datafusion::common::DataFusionError;
+use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::listing::ListingTableUrl;
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
@@ -39,15 +38,13 @@ impl GlobbingPath {
     }
 
     pub fn get_store(&self, ctx: &SessionContext) -> Result<Arc<dyn ObjectStore>> {
-        ctx.runtime_env()
-            .object_store(&self.object_store_url)
-            .map_err(anyhow::Error::from)
+        ctx.runtime_env().object_store(&self.object_store_url)
     }
 }
 
 /// Update the s such that it starts with a scheme
 /// In case no scheme is provided, we assume the s is a (globbing) expression on the local filesystem.
-fn ensure_scheme(s: &str) -> Result<String, DataFusionError> {
+fn ensure_scheme(s: &str) -> Result<String> {
     let (leading_non_globbed, maybe_trailing_globbed) = match split_glob_expression(s) {
         Some((non_globbed, globbed)) => (non_globbed, Some(globbed)),
         None => (s, None),
@@ -118,7 +115,8 @@ fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, Path, O
         None => (path_with_scheme, None),
     };
 
-    let non_globbed_url = Url::parse(non_globbed_path)?;
+    let non_globbed_url =
+        Url::parse(non_globbed_path).map_err(|e| DataFusionError::External(Box::new(e)))?;
     let (object_store_url, prefix) = match non_globbed_url.scheme() {
         "file" => ObjectStoreUrl::parse("file://").map(|osu| (osu, non_globbed_url.path())),
         "s3" => ObjectStoreUrl::parse(&non_globbed_url[..url::Position::BeforePath])
@@ -143,7 +141,7 @@ fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, Path, O
 
     match maybe_result {
         Some(Ok(pattern)) => Ok((object_store_url, prefix_path, Some(pattern))),
-        Some(Err(e)) => Err(anyhow::Error::from(e)),
+        Some(Err(e)) => Err(e),
         None => Ok((object_store_url, prefix_path, None)),
     }
 }
