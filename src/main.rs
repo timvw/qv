@@ -2,9 +2,9 @@ use anyhow::Result;
 use aws_types::credentials::*;
 use aws_types::SdkConfig;
 use clap::Parser;
+use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::prelude::*;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
-use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use url::Url;
@@ -17,17 +17,13 @@ use crate::globbing_path::GlobbingPath;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse();
-    let data_location = update_s3_console_url(&args.path);
-    let globbing_path = GlobbingPath::parse(&data_location)?;
-
-    if let Some(aws_profile) = &args.profile {
-        env::set_var("AWS_PROFILE", aws_profile);
-    }
-
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::with_config(config);
-    register_object_store(&ctx, &globbing_path).await?;
+
+    let args = Args::parse();
+    set_aws_profile_when_needed(&args);
+    let globbing_path = args.get_globbing_path()?;
+    register_object_store(&ctx, &globbing_path.object_store_url).await?;
 
     let table_arc = globbing_path.build_table_provider(&ctx).await?;
     ctx.register_table("tbl", table_arc)?;
@@ -39,52 +35,19 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// When the provided s looks like an https url from the amazon webui convert it to an s3:// url
-/// When the provided s does not like such url, return it as is.
-fn update_s3_console_url(s: &str) -> String {
-    if s.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
-        let parsed_url = Url::parse(s).unwrap_or_else(|_| panic!("Failed to parse {}", s));
-        let path_segments = parsed_url
-            .path_segments()
-            .map(|c| c.collect::<Vec<_>>())
-            .unwrap_or_default();
-        if path_segments.len() == 3 {
-            let bucket_name = path_segments[2];
-            let params: HashMap<String, String> = parsed_url
-                .query()
-                .map(|v| {
-                    url::form_urlencoded::parse(v.as_bytes())
-                        .into_owned()
-                        .collect()
-                })
-                .unwrap_or_else(HashMap::new);
-            params
-                .get("prefix")
-                .map(|prefix| format!("s3://{}/{}", bucket_name, prefix))
-                .unwrap_or_else(|| s.to_string())
-        } else {
-            s.to_string()
-        }
-    } else {
-        s.to_string()
+fn set_aws_profile_when_needed(args: &Args) {
+    if let Some(aws_profile) = &args.profile {
+        env::set_var("AWS_PROFILE", aws_profile);
     }
 }
 
-#[test]
-fn test_update_s3_console_url() -> Result<()> {
-    assert_eq!(
-        update_s3_console_url("/Users/timvw/test"),
-        "/Users/timvw/test"
-    );
-    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false"), "s3://datafusion-delta-testing/COVID-19_NYT/");
-    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1"), "s3://datafusion-delta-testing/COVID-19_NYT/");
-    Ok(())
-}
-
-async fn register_object_store(ctx: &SessionContext, globbing_path: &GlobbingPath) -> Result<()> {
-    if globbing_path.object_store_url.as_str().starts_with("s3://") {
+async fn register_object_store(
+    ctx: &SessionContext,
+    object_store_url: &ObjectStoreUrl,
+) -> Result<()> {
+    if object_store_url.as_str().starts_with("s3://") {
         let bucket_name = String::from(
-            Url::parse(globbing_path.object_store_url.as_str())
+            Url::parse(object_store_url.as_str())
                 .expect("failed to parse object_store_url")
                 .host_str()
                 .expect("failed to extract host/bucket from path"),
