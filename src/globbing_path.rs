@@ -1,12 +1,8 @@
 use anyhow::Result;
 use datafusion::common::DataFusionError;
-use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
+use datafusion::datasource::listing::ListingTableUrl;
 use datafusion::datasource::object_store::ObjectStoreUrl;
-use datafusion::datasource::TableProvider;
 use datafusion::prelude::SessionContext;
-use deltalake::storage::DeltaObjectStore;
-use deltalake::{DeltaTable, DeltaTableConfig, DeltaTableError, StorageUrl};
-use futures::TryStreamExt;
 use glob::Pattern;
 use object_store::path::Path;
 use object_store::{ObjectMeta, ObjectStore};
@@ -42,76 +38,10 @@ impl GlobbingPath {
             .unwrap_or_else(|_| panic!("failed to build ListingTableUrl from {}", s))
     }
 
-    /// Build a table provider for the globbing_path
-    /// When a globbing pattern is present a ListingTable will be built (using the non-hidden files which match the globbing pattern)
-    /// Otherwise when _delta_log is present, a DeltaTable will be built
-    /// Otherwise a ListingTable will be built (using the non-hidden files which match the prefix)
-    pub async fn build_table_provider(
-        &self,
-        ctx: &SessionContext,
-    ) -> Result<Arc<dyn TableProvider>> {
-        let table_arc: Arc<dyn TableProvider> = if self.maybe_glob.is_some() {
-            let table = self.load_listing_table(ctx).await?;
-            Arc::new(table)
-        } else if self.maybe_glob.is_none() {
-            match self.load_delta_table(ctx).await {
-                Ok(delta_table) => Arc::new(delta_table),
-                Err(_) => {
-                    let table = self.load_listing_table(ctx).await?;
-                    Arc::new(table)
-                }
-            }
-        } else {
-            let table = self.load_listing_table(ctx).await?;
-            Arc::new(table)
-        };
-        Ok(table_arc)
-    }
-
-    async fn load_listing_table(&self, ctx: &SessionContext) -> Result<ListingTable> {
-        let matching_files = self.list_glob_matching_files(ctx).await?;
-        let matching_file_urls: Vec<_> = matching_files
-            .iter()
-            .map(|x| self.build_listing_table_url(x))
-            .collect();
-
-        let mut config = ListingTableConfig::new_with_multi_paths(matching_file_urls);
-        config = config.infer_options(&ctx.state()).await?;
-        config = config.infer_schema(&ctx.state()).await?;
-        let table = ListingTable::try_new(config)?;
-        Ok(table)
-    }
-
-    async fn load_delta_table(&self, ctx: &SessionContext) -> Result<DeltaTable, DeltaTableError> {
-        let data_location = format!(
-            "{}{}",
-            &self.object_store_url.as_str(),
-            &self.prefix.as_ref()
-        );
-        let store = ctx.runtime_env().object_store(&self.object_store_url)?;
-        let delta_storage_url =
-            StorageUrl::parse(&data_location).expect("failed to parse storage url");
-        let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
-        let delta_config = DeltaTableConfig::default();
-        let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
-        let delta_table_load_result = delta_table.load().await;
-        delta_table_load_result.map(|_| delta_table)
-    }
-
-    async fn list_glob_matching_files(&self, ctx: &SessionContext) -> Result<Vec<ObjectMeta>> {
-        let store = ctx.runtime_env().object_store(&self.object_store_url)?;
-
-        let predicate = |meta: &ObjectMeta| {
-            let visible = !is_hidden(&meta.location);
-            let glob_ok = self
-                .maybe_glob
-                .clone()
-                .map(|glob| glob.matches(meta.location.as_ref()))
-                .unwrap_or(true);
-            visible && glob_ok
-        };
-
-        list_matching_files(store, &self.prefix, predicate).await
+    pub fn get_store(&self, ctx: &SessionContext) -> Result<Arc<dyn ObjectStore>> {
+        ctx.runtime_env()
+            .object_store(&self.object_store_url)
+            .map_err(anyhow::Error::from)
     }
 }
 
@@ -305,29 +235,4 @@ fn split_glob_expression(path: &str) -> Option<(&str, &str)> {
         }
     }
     None
-}
-
-/// List all the objects with the given prefix and for which the predicate closure returns true.
-// Prefixes are evaluated on a path segment basis, i.e. foo/bar/ is a prefix of foo/bar/x but not of foo/bar_baz/x.
-async fn list_matching_files<P>(
-    store: Arc<dyn ObjectStore>,
-    prefix: &Path,
-    predicate: P,
-) -> Result<Vec<ObjectMeta>>
-where
-    P: FnMut(&ObjectMeta) -> bool,
-{
-    let items: Vec<ObjectMeta> = match store.head(prefix).await {
-        Ok(meta) => vec![meta],
-        Err(_) => store.list(Some(prefix)).await?.try_collect().await?,
-    };
-
-    let filtered_items = items.into_iter().filter(predicate).collect();
-    Ok(filtered_items)
-}
-
-fn is_hidden(path: &Path) -> bool {
-    path.parts()
-        .find(|part| part.as_ref().starts_with('.') || part.as_ref().starts_with('_'))
-        .map_or_else(|| false, |_| true)
 }
