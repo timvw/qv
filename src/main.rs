@@ -23,21 +23,138 @@ use url::{ParseError, Url};
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let data_location = update_s3_console_url(&args.path)?;
+    let data_location = update_s3_console_url(&args.path);
 
-    if let Some(aws_profile) = args.profile {
+    if let Some(aws_profile) = &args.profile {
         env::set_var("AWS_PROFILE", aws_profile);
     }
 
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::with_config(config);
 
-    let data_location_with_scheme = ensure_scheme(&data_location)?;
-    let (object_store_url, prefix, maybe_glob) = extract_path_parts(&data_location_with_scheme)?;
+    let globbing_path = GlobbingPath::parse(&data_location)?;
 
-    if data_location.starts_with("s3://") {
+    register_object_store(&ctx, &globbing_path).await?;
+
+    let table_arc: Arc<dyn TableProvider> = build_table_provider(&ctx, &globbing_path).await?;
+    ctx.register_table("tbl", table_arc)?;
+
+    let query = build_query(&args);
+
+    let df = ctx.sql(query).await?;
+    df.show_limit(args.limit).await?;
+
+    Ok(())
+}
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Location where the data is located
+    path: String,
+
+    /// Query to execute
+    #[clap(short, long, default_value_t = String::from("select * from tbl"), group = "sql")]
+    query: String,
+
+    /// When provided the schema is shown
+    #[clap(short, long, group = "sql")]
+    schema: bool,
+
+    /// Rows to return
+    #[clap(short, long, default_value_t = 10)]
+    limit: usize,
+
+    /// Optional AWS Profile to use
+    #[clap(short, long)]
+    profile: Option<String>,
+}
+
+/// When the provided s looks like an https url from the amazon webui convert it to an s3:// url
+/// When the provided s does not like such url, return it as is.
+fn update_s3_console_url(s: &str) -> String {
+    if s.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
+        let parsed_url = Url::parse(s).unwrap_or_else(|_| panic!("Failed to parse {}", s));
+        let path_segments = parsed_url
+            .path_segments()
+            .map(|c| c.collect::<Vec<_>>())
+            .unwrap_or_default();
+        if path_segments.len() == 3 {
+            let bucket_name = path_segments[2];
+            let params: HashMap<String, String> = parsed_url
+                .query()
+                .map(|v| {
+                    url::form_urlencoded::parse(v.as_bytes())
+                        .into_owned()
+                        .collect()
+                })
+                .unwrap_or_else(HashMap::new);
+            params
+                .get("prefix")
+                .map(|prefix| format!("s3://{}/{}", bucket_name, prefix))
+                .unwrap_or_else(|| s.to_string())
+        } else {
+            s.to_string()
+        }
+    } else {
+        s.to_string()
+    }
+}
+
+#[test]
+fn test_update_s3_console_url() -> Result<()> {
+    assert_eq!(
+        update_s3_console_url("/Users/timvw/test"),
+        "/Users/timvw/test"
+    );
+    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false"), "s3://datafusion-delta-testing/COVID-19_NYT/");
+    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1"), "s3://datafusion-delta-testing/COVID-19_NYT/");
+    Ok(())
+}
+
+fn build_query(args: &Args) -> &str {
+    let query = if args.schema {
+        "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'tbl'"
+    } else {
+        args.query.as_str()
+    };
+    query
+}
+
+pub struct GlobbingPath {
+    pub object_store_url: ObjectStoreUrl,
+    pub prefix: Path,
+    pub maybe_glob: Option<Pattern>,
+}
+
+impl GlobbingPath {
+    /// Try to interpret the provided s as a globbing path
+    fn parse(s: &str) -> Result<GlobbingPath> {
+        let s_with_scheme = ensure_scheme(s)?;
+        let (object_store_url, prefix, maybe_glob) = extract_path_parts(&s_with_scheme)?;
+        Ok(GlobbingPath {
+            object_store_url,
+            prefix,
+            maybe_glob,
+        })
+    }
+
+    /// Build a ListingTableUrl for the object(meta)
+    fn build_listing_table_url(&self, object_meta: &ObjectMeta) -> ListingTableUrl {
+        let s = format!(
+            "{}{}",
+            self.object_store_url.as_str(),
+            object_meta.location.as_ref()
+        );
+        ListingTableUrl::parse(&s)
+            .unwrap_or_else(|_| panic!("failed to build ListingTableUrl from {}", s))
+    }
+}
+
+async fn register_object_store(ctx: &SessionContext, globbing_path: &GlobbingPath) -> Result<()> {
+    if globbing_path.object_store_url.as_str().starts_with("s3://") {
         let bucket_name = String::from(
-            Url::parse(object_store_url.as_str())
+            Url::parse(globbing_path.object_store_url.as_str())
                 .expect("failed to parse object_store_url")
                 .host_str()
                 .expect("failed to extract host/bucket from path"),
@@ -48,33 +165,6 @@ async fn main() -> Result<()> {
         ctx.runtime_env()
             .register_object_store("s3", &bucket_name, Arc::new(s3));
     }
-
-    let table_arc: Arc<dyn TableProvider> = if maybe_glob.is_some() {
-        let table = load_listing_table(&ctx, &object_store_url, &prefix, &maybe_glob).await?;
-        Arc::new(table)
-    } else {
-        let delta_table_load_result =
-            load_delta_table(&data_location, &object_store_url, &ctx).await;
-        match delta_table_load_result {
-            Ok(delta_table) => Arc::new(delta_table),
-            Err(_) => {
-                let table =
-                    load_listing_table(&ctx, &object_store_url, &prefix, &maybe_glob).await?;
-                Arc::new(table)
-            }
-        }
-    };
-    ctx.register_table("tbl", table_arc)?;
-
-    let query = if args.schema {
-        "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'tbl'"
-    } else {
-        args.query.as_str()
-    };
-
-    let df = ctx.sql(query).await?;
-    df.show_limit(args.limit).await?;
-
     Ok(())
 }
 
@@ -108,36 +198,6 @@ async fn build_s3_from_sdk_config(
     .build()?;
 
     Ok(s3)
-}
-
-fn update_s3_console_url(path: &str) -> Result<String> {
-    if path.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
-        let parsed_url = Url::parse(path)?;
-        let path_segments = parsed_url
-            .path_segments()
-            .map(|c| c.collect::<Vec<_>>())
-            .unwrap_or_default();
-        if path_segments.len() == 3 {
-            let bucket_name = path_segments[2];
-            let params: HashMap<String, String> = parsed_url
-                .query()
-                .map(|v| {
-                    url::form_urlencoded::parse(v.as_bytes())
-                        .into_owned()
-                        .collect()
-                })
-                .unwrap_or_else(HashMap::new);
-            let maybe_prefix = params.get("prefix");
-            let result = maybe_prefix
-                .map(|prefix| format!("s3://{}/{}", bucket_name, prefix))
-                .unwrap_or_else(|| path.to_string());
-            Ok(result)
-        } else {
-            Ok(path.to_string())
-        }
-    } else {
-        Ok(path.to_string())
-    }
 }
 
 fn extract_path_parts(path_with_scheme: &str) -> Result<(ObjectStoreUrl, Path, Option<Pattern>)> {
@@ -239,8 +299,41 @@ fn test_extract_path_parts() {
     assert_eq!(Some(Pattern::new("a/b*/c").unwrap()), actual.2);
 }
 
+/// Build a table provider for the globbing_path
+/// When a globbing pattern is present a ListingTable will be built (using the non-hidden files which match the globbing pattern)
+/// Otherwise when _delta_log is present, a DeltaTable will be built
+/// Otherwise a ListingTable will be built (using the non-hidden files which match the prefix)
+async fn build_table_provider(
+    ctx: &SessionContext,
+    globbing_path: &GlobbingPath,
+) -> Result<Arc<dyn TableProvider>> {
+    let table_arc: Arc<dyn TableProvider> = if globbing_path.maybe_glob.is_some() {
+        let table = load_listing_table(ctx, globbing_path).await?;
+        Arc::new(table)
+    } else if globbing_path.maybe_glob.is_none() {
+        let data_location = format!(
+            "{}{}",
+            globbing_path.object_store_url.as_str(),
+            globbing_path.prefix.as_ref()
+        );
+        let delta_table_load_result =
+            load_delta_table(&data_location, &globbing_path.object_store_url, ctx).await;
+        match delta_table_load_result {
+            Ok(delta_table) => Arc::new(delta_table),
+            Err(_) => {
+                let table = load_listing_table(ctx, globbing_path).await?;
+                Arc::new(table)
+            }
+        }
+    } else {
+        let table = load_listing_table(ctx, globbing_path).await?;
+        Arc::new(table)
+    };
+    Ok(table_arc)
+}
+
 async fn load_delta_table(
-    data_location: &String,
+    data_location: &str,
     object_store_url: &ObjectStoreUrl,
     ctx: &SessionContext,
 ) -> Result<DeltaTable, DeltaTableError> {
@@ -255,26 +348,12 @@ async fn load_delta_table(
 
 async fn load_listing_table(
     ctx: &SessionContext,
-    object_store_url: &ObjectStoreUrl,
-    prefix: &Path,
-    maybe_glob: &Option<Pattern>,
+    globbing_path: &GlobbingPath,
 ) -> Result<ListingTable> {
-    //     // now resolve the object store...
-    //     let object_store = ctx.runtime_env().object_store(&object_store_url)?;
-
-    let matching_files =
-        list_glob_matching_files(ctx, object_store_url, prefix, maybe_glob).await?;
-
+    let matching_files = list_glob_matching_files(ctx, globbing_path).await?;
     let matching_file_urls: Vec<_> = matching_files
         .iter()
-        .map(|meta| {
-            ListingTableUrl::parse(format!(
-                "{}{}",
-                object_store_url.as_str(),
-                meta.location.as_ref()
-            ))
-            .expect("failed to create listingtableurl")
-        })
+        .map(|x| globbing_path.build_listing_table_url(x))
         .collect();
 
     let mut config = ListingTableConfig::new_with_multi_paths(matching_file_urls);
@@ -305,22 +384,23 @@ where
 
 async fn list_glob_matching_files(
     ctx: &SessionContext,
-    object_store_url: &ObjectStoreUrl,
-    prefix: &Path,
-    maybe_glob: &Option<Pattern>,
+    globbing_path: &GlobbingPath,
 ) -> Result<Vec<ObjectMeta>> {
-    let store = ctx.runtime_env().object_store(&object_store_url)?;
+    let store = ctx
+        .runtime_env()
+        .object_store(&globbing_path.object_store_url)?;
 
     let predicate = |meta: &ObjectMeta| {
         let visible = !is_hidden(&meta.location);
-        let glob_ok = maybe_glob
+        let glob_ok = globbing_path
+            .maybe_glob
             .clone()
             .map(|glob| glob.matches(meta.location.as_ref()))
             .unwrap_or(true);
         visible && glob_ok
     };
 
-    list_matching_files(store, prefix, predicate).await
+    list_matching_files(store, &globbing_path.prefix, predicate).await
 }
 
 fn is_hidden(path: &Path) -> bool {
@@ -329,56 +409,18 @@ fn is_hidden(path: &Path) -> bool {
         .map_or_else(|| false, |_| true)
 }
 
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    /// Location where the data is located
-    path: String,
-
-    /// Query to execute
-    #[clap(short, long, default_value_t = String::from("select * from tbl"), group = "sql")]
-    query: String,
-
-    /// When provided the schema is shown
-    #[clap(short, long, group = "sql")]
-    schema: bool,
-
-    /// Rows to return
-    #[clap(short, long, default_value_t = 10)]
-    limit: usize,
-
-    /// Optional AWS Profile to use
-    #[clap(short, long)]
-    profile: Option<String>,
-}
-
-#[test]
-fn test_update_s3_console_url() -> Result<()> {
-    assert_eq!(
-        update_s3_console_url("/Users/timvw/test")?,
-        "/Users/timvw/test"
-    );
-    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
-    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1")?, "s3://datafusion-delta-testing/COVID-19_NYT/");
-    Ok(())
-}
-
-// So how do we want to proceed???
-
-// what do we need? an object_store_url, a prefix and a glob
-
-/// Update the data_location such that it starts with a scheme
-/// In case no scheme is provided, we assume the data_location is a (globbing) expression on the local filesystem.
-fn ensure_scheme(data_location: &str) -> Result<String, DataFusionError> {
-    let (non_globbed_path, maybe_globbed_path) = match split_glob_expression(data_location) {
+/// Update the s such that it starts with a scheme
+/// In case no scheme is provided, we assume the s is a (globbing) expression on the local filesystem.
+fn ensure_scheme(s: &str) -> Result<String, DataFusionError> {
+    let (leading_non_globbed, maybe_trailing_globbed) = match split_glob_expression(s) {
         Some((non_globbed, globbed)) => (non_globbed, Some(globbed)),
-        None => (data_location, None),
+        None => (s, None),
     };
 
-    let non_globbed_path_with_scheme = match Url::parse(non_globbed_path) {
+    let leading_non_globbed_with_scheme = match Url::parse(leading_non_globbed) {
         Ok(url) => Ok(url),
         Err(ParseError::RelativeUrlWithoutBase) => {
-            let local_path = std::path::Path::new(non_globbed_path).canonicalize()?;
+            let local_path = std::path::Path::new(leading_non_globbed).canonicalize()?;
             if local_path.is_file() {
                 Url::from_file_path(&local_path)
             } else {
@@ -393,16 +435,20 @@ fn ensure_scheme(data_location: &str) -> Result<String, DataFusionError> {
         }
         Err(e) => Err(DataFusionError::Execution(format!(
             "Failed to parse {} as url because {}",
-            data_location, e
+            s, e
         ))),
     }?;
 
-    let path_with_scheme = match maybe_globbed_path {
-        Some(globbed_path) => format!("{}{}", non_globbed_path_with_scheme.as_str(), globbed_path),
-        None => String::from(non_globbed_path_with_scheme.as_str()),
+    let s_with_scheme = match maybe_trailing_globbed {
+        Some(globbed_path) => format!(
+            "{}{}",
+            leading_non_globbed_with_scheme.as_str(),
+            globbed_path
+        ),
+        None => String::from(leading_non_globbed_with_scheme.as_str()),
     };
 
-    Ok(path_with_scheme)
+    Ok(s_with_scheme)
 }
 
 #[test]
