@@ -11,6 +11,7 @@ use std::sync::Arc;
 use url::Url;
 
 pub async fn register_object_store(
+    sdk_config: &SdkConfig,
     ctx: &SessionContext,
     object_store_url: &ObjectStoreUrl,
 ) -> Result<()> {
@@ -22,8 +23,7 @@ pub async fn register_object_store(
                 .expect("failed to extract host/bucket from path"),
         );
 
-        let sdk_config = aws_config::load_from_env().await;
-        let s3 = build_s3_from_sdk_config(&bucket_name, &sdk_config).await?;
+        let s3 = build_s3_from_sdk_config(&bucket_name, sdk_config).await?;
         ctx.runtime_env()
             .register_object_store("s3", &bucket_name, Arc::new(s3));
     }
