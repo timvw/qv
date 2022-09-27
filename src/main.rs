@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     let globbing_path = args.get_globbing_path()?;
     register_object_store(&ctx, &globbing_path.object_store_url).await?;
 
-    let table_arc = build_table_provider(&ctx, &globbing_path).await?;
+    let table_arc = build_table_provider(&ctx, &globbing_path, &args.at).await?;
     ctx.register_table("tbl", table_arc)?;
 
     let query = &args.get_query();
