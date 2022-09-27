@@ -41,17 +41,20 @@ qv https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=
 ### View data which matches a globbing pattern:
 qv "s3://datafusion-parquet-testing/data/alltypes_pla*n.parquet"
 
-### Run query on data
-qv s3://tpc-h-parquet/1/customer -q 'select c_custkey, UPPER(c_name) from tbl'
-
-### View schema of data
-qv ./datasets/tpc-h-parquet/1/customer -s
-
 ### View delta table (no need for a manifest)
 qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT
 
 ### View delta table at specific point in time
 qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT --at "2022-01-01T16:39:00+01:00"
+
+### View glue table
+qv glue://mydb.table1
+
+### Run query on data
+qv s3://tpc-h-parquet/1/customer -q 'select c_custkey, UPPER(c_name) from tbl'
+
+### View schema of data
+qv ./datasets/tpc-h-parquet/1/customer -s
 ```
 
 ## Installation
