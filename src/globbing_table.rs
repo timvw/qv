@@ -1,5 +1,6 @@
 use crate::object_store_util::*;
 use crate::GlobbingPath;
+use chrono::{DateTime, Utc};
 use datafusion::common::Result;
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::datasource::object_store::ObjectStoreUrl;
@@ -19,12 +20,20 @@ use std::sync::Arc;
 pub async fn build_table_provider(
     ctx: &SessionContext,
     globbing_path: &GlobbingPath,
+    maybe_at: &Option<DateTime<Utc>>,
 ) -> Result<Arc<dyn TableProvider>> {
     let table_arc: Arc<dyn TableProvider> = if globbing_path.maybe_glob.is_some() {
         let table = load_listing_table(ctx, globbing_path).await?;
         Arc::new(table)
     } else if globbing_path.maybe_glob.is_none() {
-        match load_delta_table(ctx, &globbing_path.object_store_url, &globbing_path.prefix).await {
+        match load_delta_table(
+            ctx,
+            &globbing_path.object_store_url,
+            &globbing_path.prefix,
+            maybe_at,
+        )
+        .await
+        {
             Ok(delta_table) => Arc::new(delta_table),
             Err(_) => {
                 let table = load_listing_table(ctx, globbing_path).await?;
@@ -80,6 +89,7 @@ async fn load_delta_table(
     ctx: &SessionContext,
     object_store_url: &ObjectStoreUrl,
     path: &Path,
+    maybe_at: &Option<DateTime<Utc>>,
 ) -> Result<DeltaTable> {
     let store = ctx.runtime_env().object_store(&object_store_url)?;
     let data_location = format!("{}{}", &object_store_url.as_str(), &path.as_ref());
@@ -87,7 +97,10 @@ async fn load_delta_table(
     let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
     let delta_config = DeltaTableConfig::default();
     let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
-    let delta_table_load_result = delta_table.load().await;
+    let delta_table_load_result = match *maybe_at {
+        Some(at) => delta_table.load_with_datetime(at).await,
+        None => delta_table.load().await,
+    };
     delta_table_load_result
         .map(|_| delta_table)
         .map_err(|dte| DataFusionError::External(Box::new(dte)))

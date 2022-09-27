@@ -1,4 +1,5 @@
 use crate::GlobbingPath;
+use chrono::{DateTime, Utc};
 use clap::Parser;
 use datafusion::common::Result;
 use std::collections::HashMap;
@@ -25,6 +26,14 @@ pub struct Args {
     /// Optional AWS Profile to use
     #[clap(short, long)]
     pub profile: Option<String>,
+
+    /// Optional timestamp for delta table
+    #[clap(
+        short,
+        long,
+        help = "Timestamp to load deltatable in RFC format, eg: 2022-01-13T16:39:00+01:00"
+    )]
+    pub at: Option<DateTime<Utc>>,
 }
 
 impl Args {
