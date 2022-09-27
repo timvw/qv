@@ -1,0 +1,78 @@
+name: Test
+
+on:
+  push:
+
+jobs:
+
+  build_assets:
+    name: Build assets ${{ inputs.app_name }}-${{ inputs.version }} (${{ matrix.config.toolchain }}-${{ matrix.config.target }}-${{ matrix.config.target_cpu }})
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          # Linux
+          - {os: ubuntu-18.04, toolchain: stable, target: x86_64-unknown-linux-gnu, target_cpu: generic, cross: false}
+          - {os: ubuntu-18.04, toolchain: stable, target: x86_64-unknown-linux-gnu, target_cpu: broadwell, cross: false}
+          - {os: ubuntu-18.04, toolchain: stable, target: aarch64-unknown-linux-gnu, target_cpu: generic, cross: true}
+          - {os: ubuntu-18.04, toolchain: stable, target: arm-unknown-linux-gnueabi, target_cpu: generic, cross: true}
+          - {os: ubuntu-18.04, toolchain: stable, target: armv7-unknown-linux-gnueabihf, target_cpu: generic, cross: true}
+          # mips and powerpc are not compitble with ring v0.16.10, so they are disabled for now
+          #          - {os: ubuntu-18.04, target: mips64el-unknown-linux-gnuabi64, cross: true}
+          #          - {os: ubuntu-18.04, target: powerpc64le-unknown-linux-gnu, cross: true}
+          - {os: ubuntu-18.04, toolchain: stable,  target: x86_64-unknown-linux-musl, target_cpu: generic, cross: true}
+          - {os: ubuntu-18.04, toolchain: stable,  target: x86_64-unknown-linux-musl, target_cpu: broadwell, cross: true}
+          - {os: ubuntu-18.04, toolchain: stable, target: aarch64-linux-android, target_cpu: generic, cross: true}
+          # Macos
+          - {os: macos-latest, toolchain: stable, target: x86_64-apple-darwin, target_cpu: generic, cross: false}
+          - {os: macos-latest, toolchain: stable, target: x86_64-apple-darwin, target_cpu: broadwell, cross: false}
+          # Windows
+          #- {os: windows-latest, toolchain: stable-x86_64-pc-windows-gnu, target: x86_64-pc-windows-gnu, target_cpu: generic, cross: false}
+          - {os: windows-latest, toolchain: stable-x86_64-pc-windows-msvc, target: x86_64-pc-windows-msvc, target_cpu: generic, cross: false}
+          #- {os: windows-latest, toolchain: stable-x86_64-pc-windows-gnu, target: x86_64-pc-windows-gnu, target_cpu: broadwell, cross: false}
+          - {os: windows-latest, toolchain: stable-x86_64-pc-windows-msvc, target: x86_64-pc-windows-msvc, target_cpu: broadwell, cross: false}
+    steps:
+      -
+        name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.config.toolchain }}
+          target: ${{ matrix.config.target }}
+          override: true
+          default: true
+      -
+        name: Downgrade cross
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.config.cross }}
+        with:
+          command: install
+          args: --version 0.1.16 cross
+      -
+        name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      -
+        name: Build application
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.config.cross }}
+          command: rustc
+          args: --manifest-path ./Cargo.toml --release --target ${{ matrix.config.target }} --no-default-features -- -C target-cpu=${{ matrix.config.target_cpu }}
+  build_container:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag_name }}
+          submodules: true
+      -
+        name: Build container
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: false
+
