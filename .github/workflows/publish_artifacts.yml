@@ -84,7 +84,7 @@ jobs:
          base-branch: master
          formula-name: qv
          tag-name: ${{ inputs.tag_name }}
-         download-url: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/${{ inputs.app_name }}-${{ steps.get-version.outputs.version }}-x86_64-apple-darwin-generic.tar.gz
+         download-url: ${{ github.server_url }}/${{ github.repository }}/archive/refs/tags/${{ inputs.tag_name }}.tar.gz
        env:
          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
 
