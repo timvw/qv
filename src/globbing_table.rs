@@ -45,6 +45,7 @@ async fn load_listing_table(
     globbing_path: &GlobbingPath,
 ) -> Result<ListingTable> {
     let matching_file_urls = list_matching_table_urls(ctx, globbing_path).await?;
+    assert!(!matching_file_urls.is_empty());
     let mut config = ListingTableConfig::new_with_multi_paths(matching_file_urls);
     config = config.infer_options(&ctx.state()).await?;
     config = config.infer_schema(&ctx.state()).await?;
