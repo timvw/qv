@@ -73,7 +73,6 @@ where
         Ok(meta) => vec![meta],
         Err(_) => store.list(Some(prefix)).await?.try_collect().await?,
     };
-
     let filtered_items = items.into_iter().filter(predicate).collect();
     Ok(filtered_items)
 }
@@ -105,6 +104,40 @@ pub async fn has_delta_log_folder(store: Arc<dyn ObjectStore>, prefix: &Path) ->
         let json_file = meta.location.as_ref().ends_with(".json");
         json_file
     };
-    let matching_files: Vec<ObjectMeta> = list_matching_files(store, &to_probe, predicate).await?;
-    Ok(!matching_files.is_empty())
+    let result: bool = list_matching_files(store, &to_probe, predicate)
+        .await
+        .map(|files| !files.is_empty())
+        .unwrap_or_else(|_| false);
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use object_store::local::LocalFileSystem;
+    use std::path::PathBuf;
+
+    fn get_project_path() -> Result<PathBuf> {
+        std::path::Path::new(".").canonicalize().map_err(Into::into)
+    }
+
+    fn get_testing_path() -> Result<PathBuf> {
+        get_project_path().map(|pb| pb.join("testing"))
+    }
+
+    fn get_testing_data_path() -> Result<PathBuf> {
+        get_testing_path().map(|pb| pb.join("data"))
+    }
+
+    #[tokio::test]
+    async fn test_has_delta_log_folder() -> Result<()> {
+        let store = Arc::new(LocalFileSystem::default());
+
+        let testing_data_path = get_testing_data_path()?;
+        let csv_file = testing_data_path.join("csv/aggregate_test_100.csv");
+
+        assert!(!has_delta_log_folder(store, &Path::from_absolute_path(csv_file)?).await?);
+
+        Ok(())
+    }
 }
