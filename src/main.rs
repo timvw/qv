@@ -15,13 +15,15 @@ use crate::object_store_util::register_object_store;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let sdk_config = aws_config::load_from_env().await;
+
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::with_config(config);
 
     let args = Args::parse();
     set_aws_profile_when_needed(&args);
-    let globbing_path = args.get_globbing_path()?;
-    register_object_store(&ctx, &globbing_path.object_store_url).await?;
+    let globbing_path = args.get_globbing_path(&sdk_config).await?;
+    register_object_store(&sdk_config, &ctx, &globbing_path.object_store_url).await?;
 
     let table_arc = build_table_provider(&ctx, &globbing_path, &args.at).await?;
     ctx.register_table("tbl", table_arc)?;

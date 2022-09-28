@@ -1,7 +1,10 @@
 use crate::GlobbingPath;
 use chrono::{DateTime, Utc};
+use aws_sdk_glue::Client;
+use aws_types::SdkConfig;
 use clap::Parser;
-use datafusion::common::Result;
+use datafusion::common::{DataFusionError, Result};
+use regex::Regex;
 use std::collections::HashMap;
 use url::Url;
 
@@ -46,10 +49,84 @@ impl Args {
         query
     }
 
-    pub fn get_globbing_path(&self) -> Result<GlobbingPath> {
+    pub async fn get_globbing_path(&self, sdk_config: &SdkConfig) -> Result<GlobbingPath> {
         let data_location = update_s3_console_url(&self.path);
+        let data_location = update_glue_url(sdk_config, &data_location).await;
         GlobbingPath::parse(&data_location)
     }
+}
+
+/// When the provided s looks like glue://database.table we lookup the storage location
+/// When the provided s does not look like glue://database.table, return s as is.
+async fn update_glue_url(sdk_config: &SdkConfig, s: &str) -> String {
+    if let Some((database_name, table_name)) = parse_glue_url(s) {
+        get_storage_location(sdk_config, &database_name, &table_name)
+            .await
+            .unwrap_or_else(|_| {
+                panic!(
+                    "failed to get storage location for {}.{}",
+                    database_name, table_name
+                )
+            })
+    } else {
+        s.to_string()
+    }
+}
+
+async fn get_storage_location(
+    sdk_config: &SdkConfig,
+    database_name: &str,
+    table_name: &str,
+) -> Result<String> {
+    let client: Client = Client::new(sdk_config);
+    let table = client
+        .get_table()
+        .set_database_name(Some(database_name.to_string()))
+        .set_name(Some(table_name.to_string()))
+        .send()
+        .await
+        .map_err(|e| DataFusionError::External(Box::new(e)))?
+        .table
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not find {}.{} in glue",
+                database_name, table_name
+            ))
+        })?;
+    let location = table
+        .storage_descriptor()
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not find storage descriptor for {}.{} in glue",
+                database_name, table_name
+            ))
+        })?
+        .location()
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not find sd.location for {}.{} in glue",
+                database_name, table_name
+            ))
+        })?;
+    Ok(location.to_string())
+}
+
+fn parse_glue_url(s: &str) -> Option<(String, String)> {
+    let re: Regex = Regex::new(r"^glue://(\w+)\.(\w+)$").unwrap();
+    re.captures(s).map(|captures| {
+        let database_name = &captures[1];
+        let table_name = &captures[2];
+        (database_name.to_string(), table_name.to_string())
+    })
+}
+
+#[test]
+fn test_parse_glue_url() {
+    assert_eq!(None, parse_glue_url("file:///a"));
+    assert_eq!(
+        Some(("db".to_string(), "table".to_string())),
+        parse_glue_url("glue://db.table")
+    );
 }
 
 /// When the provided s looks like an https url from the amazon webui convert it to an s3:// url
