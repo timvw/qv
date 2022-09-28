@@ -136,9 +136,12 @@ mod tests {
         let store = Arc::new(LocalFileSystem::default());
 
         let testing_data_path = get_testing_data_path()?;
-        let csv_file = testing_data_path.join("csv/aggregate_test_100.csv");
 
-        assert!(!has_delta_log_folder(store, &Path::from_absolute_path(csv_file)?).await?);
+        let csv_file = testing_data_path.join("csv/aggregate_test_100.csv");
+        assert!(!has_delta_log_folder(store.clone(), &Path::from_absolute_path(csv_file)?).await?);
+
+        let csv_folder = testing_data_path.join("csv");
+        assert!(!has_delta_log_folder(store.clone(), &Path::from_absolute_path(csv_folder)?).await?);
 
         Ok(())
     }
