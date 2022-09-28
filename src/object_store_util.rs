@@ -69,9 +69,11 @@ pub async fn list_matching_files<P>(
 where
     P: FnMut(&ObjectMeta) -> bool,
 {
-    let items: Vec<ObjectMeta> = match store.head(prefix).await {
-        Ok(meta) => vec![meta],
-        Err(_) => store.list(Some(prefix)).await?.try_collect().await?,
+    let items: Vec<ObjectMeta> = store.list(Some(prefix)).await?.try_collect().await?;
+    let items = if items.is_empty() {
+        vec![store.head(prefix).await?]
+    } else {
+        items
     };
     let filtered_items = items.into_iter().filter(predicate).collect();
     Ok(filtered_items)
