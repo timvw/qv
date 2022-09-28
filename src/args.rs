@@ -1,7 +1,7 @@
 use crate::GlobbingPath;
-use chrono::{DateTime, Utc};
 use aws_sdk_glue::Client;
 use aws_types::SdkConfig;
+use chrono::{DateTime, Utc};
 use clap::Parser;
 use datafusion::common::{DataFusionError, Result};
 use regex::Regex;

@@ -100,7 +100,6 @@ fn test_is_hidden() {
 
 /// Determines whether there is a _delta_log folder
 pub async fn has_delta_log_folder(store: Arc<dyn ObjectStore>, prefix: &Path) -> Result<bool> {
-
     let to_probe = Path::parse(format!("{}/_delta_log", prefix))?;
     let predicate = |meta: &ObjectMeta| {
         let visible = !is_hidden(&meta.location);

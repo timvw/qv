@@ -23,13 +23,20 @@ pub async fn build_table_provider(
     maybe_at: &Option<DateTime<Utc>>,
 ) -> Result<Arc<dyn TableProvider>> {
     let store = globbing_path.get_store(ctx)?;
-    let table_arc: Arc<dyn TableProvider> = if has_delta_log_folder(store, &globbing_path.prefix).await? {
-        let delta_table = load_delta_table(ctx, &globbing_path.object_store_url, &globbing_path.prefix, maybe_at).await?;
-        Arc::new(delta_table)
-    } else {
-        let listing_table = load_listing_table(ctx, globbing_path).await?;
-        Arc::new(listing_table)
-    };
+    let table_arc: Arc<dyn TableProvider> =
+        if has_delta_log_folder(store, &globbing_path.prefix).await? {
+            let delta_table = load_delta_table(
+                ctx,
+                &globbing_path.object_store_url,
+                &globbing_path.prefix,
+                maybe_at,
+            )
+            .await?;
+            Arc::new(delta_table)
+        } else {
+            let listing_table = load_listing_table(ctx, globbing_path).await?;
+            Arc::new(listing_table)
+        };
     Ok(table_arc)
 }
 
