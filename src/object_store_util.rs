@@ -102,9 +102,8 @@ fn test_is_hidden() {
 pub async fn has_delta_log_folder(store: Arc<dyn ObjectStore>, prefix: &Path) -> Result<bool> {
     let to_probe = Path::parse(format!("{}/_delta_log", prefix))?;
     let predicate = |meta: &ObjectMeta| {
-        let visible = !is_hidden(&meta.location);
         let json_file = meta.location.as_ref().ends_with(".json");
-        visible && json_file
+        json_file
     };
     let matching_files: Vec<ObjectMeta> = list_matching_files(store, &to_probe, predicate).await?;
     Ok(!matching_files.is_empty())
