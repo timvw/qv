@@ -97,3 +97,15 @@ fn test_is_hidden() {
     assert!(is_hidden(&Path::parse("a/_hidden/b").unwrap()));
     assert!(is_hidden(&Path::parse("a/.hidden/b").unwrap()));
 }
+
+/// Determines whether there is a _delta_log folder
+pub async fn has_delta_log_folder(store: Arc<dyn ObjectStore>, prefix: &Path) -> Result<bool> {
+    let to_probe = Path::parse(format!("{}/_delta_log", prefix))?;
+    let predicate = |meta: &ObjectMeta| {
+        let visible = !is_hidden(&meta.location);
+        let json_file = meta.location.as_ref().ends_with(".json");
+        visible && json_file
+    };
+    let matching_files: Vec<ObjectMeta> = list_matching_files(store, &to_probe, predicate).await?;
+    Ok(!matching_files.is_empty())
+}
