@@ -1,3 +1,0 @@
-[submodule "testing"]
-	path = testing
-	url = https://github.com/apache/arrow-testing
