@@ -85,6 +85,7 @@ jobs:
          formula-name: qv
          tag-name: ${{ inputs.tag_name }}
          download-url: ${{ github.server_url }}/${{ github.repository }}/archive/refs/tags/${{ inputs.tag_name }}.tar.gz
+         create-pullrequest: true
        env:
          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
 
