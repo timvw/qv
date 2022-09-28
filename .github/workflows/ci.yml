@@ -28,19 +28,3 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-  test_build_container:
-    name: Build container
-    runs-on: ubuntu-latest
-    steps:
-      -
-        name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          submodules: true
-      -
-        name: Build container
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          push: false
-
