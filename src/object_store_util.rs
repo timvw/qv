@@ -143,6 +143,10 @@ mod tests {
         let csv_folder = testing_data_path.join("csv");
         assert!(!has_delta_log_folder(store.clone(), &Path::from_absolute_path(csv_folder)?).await?);
 
+        let delta_folder = testing_data_path.join("delta");
+        let covid_delta_folder = delta_folder.join("COVID-19_NYT");
+        assert!(has_delta_log_folder(store.clone(), &Path::from_absolute_path(covid_delta_folder)?).await?);
+
         Ok(())
     }
 }
