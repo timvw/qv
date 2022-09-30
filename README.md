@@ -7,7 +7,7 @@ A simply CLI to quickly view your data. Powered by [DataFusion](https://github.c
 * Run SQL against files
 * View file schemas
 * Supports [Deltalake](https://delta.io/) (No need for manifest file), CSV, JSON, [Parquet](https://parquet.apache.org/) and [Avro](https://avro.apache.org/) file formats
-* Supports local file system and S3 (and https links from AWS S3 console).
+* Supports local file system, [S3](https://aws.amazon.com/s3/) (+ https links from AWS S3 console) and [GCS](https://cloud.google.com/storage).
 
 ## Usage
 
@@ -28,6 +28,9 @@ qv /mnt/datasets/nyc/green_tripdata_2020-07.csv
 | 2        | 2020-07-01 00:39:09  | 2020-07-01 00:40:55   | N                  | 1          | 75           | 75           | 1               | 0.35          | 3.5         | 0.5   | 0.5     | 0          | 0            |           | 0.3                   | 4.8          | 2            | 1         | 0                    |
 | 2        | 2020-07-01 00:45:59  | 2020-07-01 01:01:02   | N                  | 1          | 75           | 87           | 1               | 8.17          | 24          | 0.5   | 0.5     | 4.21       | 0            |           | 0.3                   | 32.26        | 1            | 1         | 2.75                 |
 +----------+----------------------+-----------------------+--------------------+------------+--------------+--------------+-----------------+---------------+-------------+-------+---------+------------+--------------+-----------+-----------------------+--------------+--------------+-----------+----------------------+
+
+### View data on GCS.
+qv gs://datafusion-delta-testing/data/delta/COVID-19_NYT
 
 ###View data on S3
 qv s3://tpc-h-parquet/1/customer

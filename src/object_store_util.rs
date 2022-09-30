@@ -5,8 +5,10 @@ use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
 use futures::TryStreamExt;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
+use object_store::gcp::{GoogleCloudStorage, GoogleCloudStorageBuilder};
 use object_store::path::Path;
 use object_store::{ObjectMeta, ObjectStore};
+use std::env;
 use std::sync::Arc;
 use url::Url;
 
@@ -16,18 +18,39 @@ pub async fn register_object_store(
     object_store_url: &ObjectStoreUrl,
 ) -> Result<()> {
     if object_store_url.as_str().starts_with("s3://") {
-        let bucket_name = String::from(
-            Url::parse(object_store_url.as_str())
-                .expect("failed to parse object_store_url")
-                .host_str()
-                .expect("failed to extract host/bucket from path"),
-        );
-
+        let bucket_name = extract_bucket_name(object_store_url);
         let s3 = build_s3_from_sdk_config(&bucket_name, sdk_config).await?;
         ctx.runtime_env()
             .register_object_store("s3", &bucket_name, Arc::new(s3));
     }
+    if object_store_url.as_str().starts_with("gs://") {
+        let bucket_name = extract_bucket_name(object_store_url);
+        let gcs = build_gcs(&bucket_name)?;
+        ctx.runtime_env()
+            .register_object_store("gs", &bucket_name, Arc::new(gcs));
+    }
     Ok(())
+}
+
+fn extract_bucket_name(object_store_url: &ObjectStoreUrl) -> String {
+    let bucket_name = String::from(
+        Url::parse(object_store_url.as_str())
+            .expect("failed to parse object_store_url")
+            .host_str()
+            .expect("failed to extract host/bucket from path"),
+    );
+    bucket_name
+}
+
+fn build_gcs(bucket_name: &str) -> Result<GoogleCloudStorage> {
+    let google_application_credentials = env::var("GOOGLE_APPLICATION_CREDENTIALS")
+        .expect("Could not find GOOGLE_APPLICATION_CREDENTIALS env variable");
+
+    let gcs_builder = GoogleCloudStorageBuilder::new();
+    let gcs_builder = gcs_builder.with_bucket_name(bucket_name);
+    let gcs_builder = gcs_builder.with_service_account_path(google_application_credentials);
+    let gcs = gcs_builder.build()?;
+    Ok(gcs)
 }
 
 async fn build_s3_from_sdk_config(bucket_name: &str, sdk_config: &SdkConfig) -> Result<AmazonS3> {
