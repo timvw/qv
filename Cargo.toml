@@ -26,3 +26,7 @@ object_store = { version = "0.5.0", features = ["aws", "gcp"] }
 regex = "1.6.0"
 tokio = { version = "1.21", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
 url = "2.3"
+
+[dev-dependencies]
+assert_cmd = "2.0.4"
+predicates = "2.1.1"
