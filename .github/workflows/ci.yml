@@ -45,7 +45,7 @@ jobs:
           args: -- -D warnings
       - name: Run tests
         run: |
-          export QV_TESTING_PATH=/home/runner/work/qv/testing
+          export QV_TESTING_PATH=/home/runner/work/qv/qv/testing
           cargo test
 
 
