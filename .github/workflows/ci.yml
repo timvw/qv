@@ -11,6 +11,8 @@ jobs:
   test:
     name: build + test + fmt + clippy
     runs-on: ubuntu-latest
+    env:
+      QV_TESTING_PATH: ${env:GITHUB_WORKSPACE}/testing
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
