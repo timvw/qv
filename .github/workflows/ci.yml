@@ -48,8 +48,8 @@ jobs:
       - run: |
           export QV_TESTING_PATH=/home/runner/work/qv/qv/testing
           cargo install cargo2junit grcov;
-          cargo test $CARGO_OPTIONS -- -Z unstable-options --format json | cargo2junit > results.xml;
-          zip -0 ccov.zip `find . \( -name "$PROJECT_NAME_UNDERSCORE*.gc*" \) -print`;
+          cargo test -- -Z unstable-options --format json | cargo2junit > results.xml;
+          zip -0 ccov.zip `find . \( -name "qv*.gc*" \) -print`;
           grcov ccov.zip -s . -t lcov --llvm --ignore-not-existing --ignore "/*" --ignore "tests/*" -o lcov.info;
       - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action@v1
