@@ -45,9 +45,10 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-      - name: Run tests
-        run: |
+      - run: |
           export QV_TESTING_PATH=/home/runner/work/qv/qv/testing
-          cargo test
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
 
 
