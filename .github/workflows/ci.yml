@@ -21,6 +21,10 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
+      - name: Set QV_TESTING_PATH
+        shell: bash
+        run: |
+          export QV_TESTING_PATH=$(pwd)/testing
       - uses: actions-rs/cargo@v1
         with:
           command: test
