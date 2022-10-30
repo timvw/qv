@@ -35,21 +35,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-      - name: Set QV_TESTING_PATH
-        shell: bash
-        run: |
-          export QV_TESTING_PATH=$(pwd)/testing
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
 
