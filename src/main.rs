@@ -78,15 +78,16 @@ mod tests {
     }
 
     fn get_qv_testing_path(rel_data_path: &str) -> String {
-        let testing_path = env::var("QV_TESTING_PATH")
-            .unwrap_or("./testing".to_string());
+        let testing_path = env::var("QV_TESTING_PATH").unwrap_or_else(|_| "./testing".to_string());
         format!("{}/{}", testing_path, rel_data_path)
     }
 
     #[tokio::test]
     async fn run_with_local_parquet_file() -> Result<()> {
         let mut cmd = get_qv_cmd()?;
-        let cmd = cmd.arg(get_qv_testing_path("data/parquet/generated_simple_numerics/blogs.parquet"));
+        let cmd = cmd.arg(get_qv_testing_path(
+            "data/parquet/generated_simple_numerics/blogs.parquet",
+        ));
         cmd.assert()
             .success()
             .stdout(predicate::str::contains(
