@@ -9,10 +9,10 @@ use datafusion::error::DataFusionError;
 use datafusion::prelude::SessionContext;
 use deltalake::storage::DeltaObjectStore;
 use deltalake::{DeltaTable, DeltaTableConfig, StorageUrl};
+use iceberg_rs::datafusion::DataFusionTable;
 use object_store::path::Path;
 use object_store::ObjectMeta;
 use std::sync::Arc;
-use iceberg_rs::datafusion::DataFusionTable;
 
 /// Build a table provider for the globbing_path
 /// When a globbing pattern is present a ListingTable will be built (using the non-hidden files which match the globbing pattern)
@@ -24,28 +24,25 @@ pub async fn build_table_provider(
     maybe_at: &Option<DateTime<Utc>>,
 ) -> Result<Arc<dyn TableProvider>> {
     let store = globbing_path.get_store(ctx)?;
-    let table_arc: Arc<dyn TableProvider> =
-        if has_delta_log_folder(&store, &globbing_path.prefix).await? {
-            let delta_table = load_delta_table(
-                ctx,
-                &globbing_path.object_store_url,
-                &globbing_path.prefix,
-                maybe_at,
-            )
-            .await?;
-            Arc::new(delta_table)
-        } else if has_metadata_folder(&store, &globbing_path.prefix).await? {
-            let iceberg_table = load_iceberg_table(
-                ctx,
-                &globbing_path.object_store_url,
-                &globbing_path.prefix,
-            )
-                .await?;
-            Arc::new(iceberg_table)
-        } else {
-            let listing_table = load_listing_table(ctx, globbing_path).await?;
-            Arc::new(listing_table)
-        };
+    let table_arc: Arc<dyn TableProvider> = if has_delta_log_folder(&store, &globbing_path.prefix)
+        .await?
+    {
+        let delta_table = load_delta_table(
+            ctx,
+            &globbing_path.object_store_url,
+            &globbing_path.prefix,
+            maybe_at,
+        )
+        .await?;
+        Arc::new(delta_table)
+    } else if has_metadata_folder(&store, &globbing_path.prefix).await? {
+        let iceberg_table =
+            load_iceberg_table(ctx, &globbing_path.object_store_url, &globbing_path.prefix).await?;
+        Arc::new(iceberg_table)
+    } else {
+        let listing_table = load_listing_table(ctx, globbing_path).await?;
+        Arc::new(listing_table)
+    };
     Ok(table_arc)
 }
 
@@ -121,5 +118,3 @@ async fn load_iceberg_table(
         .map_err(|e| DataFusionError::Execution(format!("failed to load iceberg table {}", e)))?;
     Ok(DataFusionTable::from(iceberg_table))
 }
-
-
