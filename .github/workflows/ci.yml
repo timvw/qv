@@ -47,15 +47,24 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
+      - run: export LLVM_PROFILE_FILE="qv-%p-%m.profraw"
       - run: |
           export QV_TESTING_PATH=/home/runner/work/qv/qv/testing
           cargo install cargo2junit grcov;
           cargo test -- -Z unstable-options --format json | cargo2junit > results.xml;
+          grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
       - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action@v1
         with:
           check_name: Test Results
           github_token: ${{ secrets.GITHUB_TOKEN }}
           files: results.xml
+      - name: Upload to CodeCov
+        uses: codecov/codecov-action@v1
+        with:
+          # required for private repositories:
+          # token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov.info
+          fail_ci_if_error: true
 
 

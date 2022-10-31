@@ -17,3 +17,4 @@ Cargo.lock
 
 ## Ignore instrumentation
 *.profraw
+lcov.info
