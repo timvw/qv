@@ -7,8 +7,17 @@ A simply CLI to quickly view your data. Powered by [DataFusion](https://github.c
 * View file (and directories of files) contents
 * Run SQL against files
 * View file schemas
-* Supports [Deltalake](https://delta.io/) (No need for manifest file), CSV, JSON, [Parquet](https://parquet.apache.org/) and [Avro](https://avro.apache.org/) file formats
-* Supports local file system, [S3](https://aws.amazon.com/s3/) (+ https links from AWS S3 console) and [GCS](https://cloud.google.com/storage).
+* Supported formats:
+  - [Deltalake](https://delta.io/) (No need for manifest file)
+  - [Iceberg](https://iceberg.apache.org/)
+  - [Parquet](https://parquet.apache.org/)
+  - [Avro](https://avro.apache.org/)
+  - CSV, 
+  - JSON,
+* Supported storage sytems: 
+  - local file system
+  - [S3](https://aws.amazon.com/s3/) (+ https links from AWS S3 console)
+  - [GCS](https://cloud.google.com/storage)
 
 ## Usage
 
