@@ -14,3 +14,6 @@ Cargo.lock
 
 /target
 .idea
+
+## Ignore instrumentation
+*.profraw
