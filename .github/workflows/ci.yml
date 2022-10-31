@@ -11,10 +11,10 @@ jobs:
   test:
     name: build + test + fmt + clippy
     runs-on: ubuntu-latest
-    env:
-      QV_TESTING_PATH: ${env:GITHUB_WORKSPACE}/testing
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -32,9 +32,6 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
       - run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
         with:
@@ -45,4 +42,20 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+      - run: rustup component add llvm-tools-preview
+      - run: export RUSTFLAGS="-Cinstrument-coverage"
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+      - run: |
+          export QV_TESTING_PATH=/home/runner/work/qv/qv/testing
+          cargo install cargo2junit grcov;
+          cargo test -- -Z unstable-options --format json | cargo2junit > results.xml;
+      - name: Upload test results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        with:
+          check_name: Test Results
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          files: results.xml
+
 
