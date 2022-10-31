@@ -19,3 +19,4 @@ Cargo.lock
 *.profraw
 lcov.info
 ccov.zip
+results.xml
