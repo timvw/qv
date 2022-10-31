@@ -52,8 +52,8 @@ jobs:
           export QV_TESTING_PATH=/home/runner/work/qv/qv/testing
           cargo install cargo2junit grcov;
           cargo test -- -Z unstable-options --format json | cargo2junit > results.xml;
-          grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
-      - name: Upload test results
+          zip -0 ccov.zip `find . \( -name "*.profraw" \) -print`;
+          grcov ccov.zip --binary-path ./target/debug/ -s . -t lcov --llvm --ignore-not-existing --ignore "/*" --ignore "tests/*" -o lcov.info;      - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action@v1
         with:
           check_name: Test Results
@@ -64,7 +64,7 @@ jobs:
         with:
           # required for private repositories:
           # token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./lcov.info
+          files: lcov.info
           fail_ci_if_error: true
 
 
