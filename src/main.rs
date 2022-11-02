@@ -22,6 +22,7 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
     set_aws_profile_when_needed(&args);
+    set_aws_region_when_needed();
     let globbing_path = args.get_globbing_path(&sdk_config).await?;
     register_object_store(&sdk_config, &ctx, &globbing_path.object_store_url).await?;
 
@@ -38,6 +39,13 @@ async fn main() -> Result<()> {
 fn set_aws_profile_when_needed(args: &Args) {
     if let Some(aws_profile) = &args.profile {
         env::set_var("AWS_PROFILE", aws_profile);
+    }
+}
+
+fn set_aws_region_when_needed() {
+    match env::var("AWS_DEFAULT_REGION") {
+        Ok(_) => {},
+        Err(_) => env::set_var("AWS_DEFAULT_REGION", "eu-central-1"),
     }
 }
 

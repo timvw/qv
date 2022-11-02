@@ -23,6 +23,12 @@ pub async fn register_object_store(
         ctx.runtime_env()
             .register_object_store("s3", &bucket_name, Arc::new(s3));
     }
+    if object_store_url.as_str().starts_with("s3a://") {
+        let bucket_name = extract_bucket_name(object_store_url);
+        let s3 = build_s3_from_sdk_config(&bucket_name, sdk_config).await?;
+        ctx.runtime_env()
+            .register_object_store("s3a", &bucket_name, Arc::new(s3));
+    }
     if object_store_url.as_str().starts_with("gs://") {
         let bucket_name = extract_bucket_name(object_store_url);
         let gcs = build_gcs(&bucket_name)?;
