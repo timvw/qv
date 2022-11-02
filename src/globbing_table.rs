@@ -112,8 +112,7 @@ async fn load_iceberg_table(
     path: &Path,
 ) -> Result<DataFusionTable> {
     let store = ctx.runtime_env().object_store(&object_store_url)?;
-    let data_location = format!("{}{}", &object_store_url.as_str(), &path.as_ref());
-    let iceberg_table = iceberg_rs::table::Table::load_file_system_table(&data_location, &store)
+    let iceberg_table = iceberg_rs::table::Table::load_file_system_table(&path.as_ref(), &store)
         .await
         .map_err(|e| DataFusionError::Execution(format!("failed to load iceberg table {}", e)))?;
     Ok(DataFusionTable::from(iceberg_table))
