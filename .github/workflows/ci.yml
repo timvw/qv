@@ -36,9 +36,8 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
       - name: Install required components
         run: |
-          rustup component add rustfmt
-          rustup component add clippy
-          cargo install cargo-tarpaulin
+          rustup component add rustfmt clippy
+          cargo install cargo-tarpaulin cargo2junit
       - name: Run fmt
         uses: actions-rs/cargo@v1
         with:
@@ -49,7 +48,18 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-      - name: Run tarpaulin
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -Z unstable-options --format json --report-time | cargo2junit > results.xml
+      - name: Upload test results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        with:
+          check_name: Test Results
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          files: results.xml
+      - name: Run code coverage
         uses: actions-rs/cargo@v1
         with:
           command: tarpaulin
