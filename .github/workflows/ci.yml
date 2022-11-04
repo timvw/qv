@@ -48,6 +48,10 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
       - name: Setup minio
         run: |
           docker run \
