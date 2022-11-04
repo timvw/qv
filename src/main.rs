@@ -97,7 +97,6 @@ mod tests {
 
     #[tokio::test]
     async fn read_s3_iceberg_table() -> Result<()> {
-
         let bucket_name = "data";
         let path = Path::parse("iceberg/db/COVID-19_NYT")?;
 
@@ -120,18 +119,18 @@ mod tests {
 
     fn get_local_minio_s3_object_store(bucket_name: &str) -> Result<Arc<dyn ObjectStore>> {
         /*
-        docker run \
---detach \
---rm \
---publish 9000:9000 \
---publish 9001:9001 \
---name minio \
---volume "/Users/timvw/src/github/qv/testing:/data" \
---env "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
---env "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
-quay.io/minio/minio:RELEASE.2022-05-26T05-48-41Z server /data \
---console-address ":9001"
-         */
+                docker run \
+        --detach \
+        --rm \
+        --publish 9000:9000 \
+        --publish 9001:9001 \
+        --name minio \
+        --volume "/Users/timvw/src/github/qv/testing:/data" \
+        --env "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
+        --env "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
+        quay.io/minio/minio:RELEASE.2022-05-26T05-48-41Z server /data \
+        --console-address ":9001"
+                 */
         let s3 = AmazonS3Builder::new()
             .with_region("eu-central-1")
             .with_access_key_id("AKIAIOSFODNN7EXAMPLE")
