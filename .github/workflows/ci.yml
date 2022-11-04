@@ -52,4 +52,12 @@ jobs:
           crate: grcov
           use-tool-cache: true
 
+      - name: coverage
+        uses: actions-rs/grcov@v0.1
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+
 
