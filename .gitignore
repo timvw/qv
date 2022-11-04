@@ -20,3 +20,4 @@ Cargo.lock
 lcov.info
 ccov.zip
 results.xml
+cobertura.xml
