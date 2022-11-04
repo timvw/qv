@@ -22,6 +22,7 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
     set_aws_profile_when_needed(&args);
+    set_aws_region_when_needed();
     let globbing_path = args.get_globbing_path(&sdk_config).await?;
     register_object_store(&sdk_config, &ctx, &globbing_path.object_store_url).await?;
 
@@ -38,6 +39,13 @@ async fn main() -> Result<()> {
 fn set_aws_profile_when_needed(args: &Args) {
     if let Some(aws_profile) = &args.profile {
         env::set_var("AWS_PROFILE", aws_profile);
+    }
+}
+
+fn set_aws_region_when_needed() {
+    match env::var("AWS_DEFAULT_REGION") {
+        Ok(_) => {}
+        Err(_) => env::set_var("AWS_DEFAULT_REGION", "eu-central-1"),
     }
 }
 
@@ -98,4 +106,53 @@ mod tests {
             ));
         Ok(())
     }
+
+    /* only works when object_store is released with profile support and is used insted of aws-rust-sdk to get credentials etc
+    use object_store::aws::AmazonS3Builder;
+    use object_store::path::Path;
+    use object_store::ObjectStore;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn read_s3_iceberg_table() -> Result<()> {
+        /*
+                docker run \
+        --detach \
+        --rm \
+        --publish 9000:9000 \
+        --publish 9001:9001 \
+        --name minio \
+        --volume "/Users/timvw/src/github/qv/testing:/data" \
+        --env "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
+        --env "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
+        quay.io/minio/minio:RELEASE.2022-05-26T05-48-41Z server /data \
+        --console-address ":9001"
+                 */
+
+        let bucket_name = "data";
+        let path = Path::parse("iceberg/db/COVID-19_NYT")?;
+
+        let s3 = AmazonS3Builder::new()
+            .with_region("eu-central-1")
+            .with_access_key_id("AKIAIOSFODNN7EXAMPLE")
+            .with_secret_access_key("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+            .with_endpoint("http://localhost:9000")
+            .with_allow_http(true)
+            .with_bucket_name(bucket_name)
+            .build()?;
+        let store: Arc<dyn ObjectStore> = Arc::new(s3);
+
+        let ctx = SessionContext::new();
+        ctx.runtime_env()
+            .register_object_store("s3", bucket_name, store);
+
+        let gp = globbing_path::GlobbingPath::parse(&format!("s3://{}/{}", bucket_name, path))?;
+        let tp = globbing_table::build_table_provider(&ctx, &gp, &None).await?;
+
+        ctx.register_table("t", tp)?;
+        let df = ctx.sql("select * from t").await?;
+        df.show_limit(10).await?;
+
+        Ok(())
+    }*/
 }
