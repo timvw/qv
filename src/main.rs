@@ -49,6 +49,7 @@ fn set_aws_region_when_needed() {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,3 +157,5 @@ mod tests {
         Ok(())
     }*/
 }
+
+ */
