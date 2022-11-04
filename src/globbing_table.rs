@@ -91,7 +91,7 @@ async fn load_delta_table(
     path: &Path,
     maybe_at: &Option<DateTime<Utc>>,
 ) -> Result<DeltaTable> {
-    let store = ctx.runtime_env().object_store(&object_store_url)?;
+    let store = ctx.runtime_env().object_store(object_store_url)?;
     let data_location = format!("{}{}", &object_store_url.as_str(), &path.as_ref());
     let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
     let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
@@ -111,7 +111,7 @@ async fn load_iceberg_table(
     object_store_url: &ObjectStoreUrl,
     path: &Path,
 ) -> Result<DataFusionTable> {
-    let store = ctx.runtime_env().object_store(&object_store_url)?;
+    let store = ctx.runtime_env().object_store(object_store_url)?;
     let iceberg_table = iceberg_rs::table::Table::load_file_system_table(path.as_ref(), &store)
         .await
         .map_err(|e| DataFusionError::Execution(format!("failed to load iceberg table {}", e)))?;
