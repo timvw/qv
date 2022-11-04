@@ -16,12 +16,14 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
+
       - name: Intall rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
+
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -34,62 +36,20 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - name: Install required components
-        run: |
-          rustup component add rustfmt clippy
-          cargo install cargo-tarpaulin cargo2junit
-      - name: Run fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-      - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-      - name: Setup minio
-        run: |
-          docker run \
-          --detach \
-          --rm \
-          --publish 9000:9000 \
-          --publish 9001:9001 \
-          --name minio \
-          --volume "$(PWD)/testing:/data" \
-          --env "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
-          --env "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
-          quay.io/minio/minio:RELEASE.2022-05-26T05-48-41Z server /data \
-          --console-address ":9001"
-      - name: Run tests
+
+      - name: Execute tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -- -Z unstable-options --format json --report-time | cargo2junit > results.xml
-      - name: Upload test results
-        uses: EnricoMi/publish-unit-test-result-action@v1
-        with:
-          check_name: Test Results
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          files: results.xml
-      - name: Run code coverage
-        uses: actions-rs/cargo@v1
-        with:
-          command: tarpaulin
-          args: --out Xml
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v1
-        with:
-          name: code-coverage-report
-          path: cobertura.xml
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true
+          args: --all
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
 
+      - name: Pre-installing grcov
+        uses: actions-rs/install@v0.1
+        with:
+          crate: grcov
+          use-tool-cache: true
 
 
