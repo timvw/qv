@@ -48,6 +48,19 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+      - name: Setup minio
+        run: |
+          docker run \
+          --detach \
+          --rm \
+          --publish 9000:9000 \
+          --publish 9001:9001 \
+          --name minio \
+          --volume "$(PWD)/testing:/data" \
+          --env "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
+          --env "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
+          quay.io/minio/minio:RELEASE.2022-05-26T05-48-41Z server /data \
+          --console-address ":9001"
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
