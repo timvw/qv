@@ -12,8 +12,8 @@ A simply CLI to quickly view your data. Powered by [DataFusion](https://github.c
   - [Iceberg](https://iceberg.apache.org/)
   - [Parquet](https://parquet.apache.org/)
   - [Avro](https://avro.apache.org/)
-  - CSV, 
-  - JSON,
+  - CSV
+  - JSON
 * Supported storage sytems: 
   - local file system
   - [S3](https://aws.amazon.com/s3/) (+ https links from AWS S3 console)
