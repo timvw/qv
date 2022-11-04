@@ -52,7 +52,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -Z unstable-options --format json --report-time | cargo2junit > results.xml
+          args: -- -Z unstable-options --format json --report-time | cargo2junit > results.xml
       - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action@v1
         with:
