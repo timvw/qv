@@ -2,6 +2,7 @@ use aws_types::credentials::ProvideCredentials;
 use aws_types::SdkConfig;
 use datafusion::common::Result;
 use datafusion::datasource::object_store::ObjectStoreUrl;
+use datafusion::error::DataFusionError;
 use datafusion::prelude::SessionContext;
 use futures::TryStreamExt;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
@@ -13,21 +14,18 @@ use std::sync::Arc;
 use url::Url;
 
 pub async fn register_object_store(
-    sdk_config: &SdkConfig,
+    maybe_sdk_config: &Option<SdkConfig>,
     ctx: &SessionContext,
     object_store_url: &ObjectStoreUrl,
 ) -> Result<()> {
     if object_store_url.as_str().starts_with("s3://") {
+        let sdk_config = maybe_sdk_config.as_ref().ok_or_else(|| {
+            DataFusionError::Execution(String::from("Expected aws sdk config to be available"))
+        })?;
         let bucket_name = extract_bucket_name(object_store_url);
         let s3 = build_s3_from_sdk_config(&bucket_name, sdk_config).await?;
         ctx.runtime_env()
             .register_object_store("s3", &bucket_name, Arc::new(s3));
-    }
-    if object_store_url.as_str().starts_with("s3a://") {
-        let bucket_name = extract_bucket_name(object_store_url);
-        let s3 = build_s3_from_sdk_config(&bucket_name, sdk_config).await?;
-        ctx.runtime_env()
-            .register_object_store("s3a", &bucket_name, Arc::new(s3));
     }
     if object_store_url.as_str().starts_with("gs://") {
         let bucket_name = extract_bucket_name(object_store_url);

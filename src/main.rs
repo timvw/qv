@@ -1,7 +1,6 @@
 use clap::Parser;
 use datafusion::common::Result;
 use datafusion::prelude::*;
-use std::env;
 
 mod args;
 mod globbing_path;
@@ -15,16 +14,12 @@ use crate::object_store_util::register_object_store;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let sdk_config = aws_config::load_from_env().await;
-
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::with_config(config);
 
-    let args = Args::parse();
-    set_aws_profile_when_needed(&args);
-    set_aws_region_when_needed();
-    let globbing_path = args.get_globbing_path(&sdk_config).await?;
-    register_object_store(&sdk_config, &ctx, &globbing_path.object_store_url).await?;
+    let args: Args = Args::parse();
+    let (globbing_path, maybe_sdk_config) = args.get_globbing_path().await?;
+    register_object_store(&maybe_sdk_config, &ctx, &globbing_path.object_store_url).await?;
 
     let table_arc = build_table_provider(&ctx, &globbing_path, &args.at).await?;
     ctx.register_table("tbl", table_arc)?;
@@ -36,20 +31,6 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn set_aws_profile_when_needed(args: &Args) {
-    if let Some(aws_profile) = &args.profile {
-        env::set_var("AWS_PROFILE", aws_profile);
-    }
-}
-
-fn set_aws_region_when_needed() {
-    match env::var("AWS_DEFAULT_REGION") {
-        Ok(_) => {}
-        Err(_) => env::set_var("AWS_DEFAULT_REGION", "eu-central-1"),
-    }
-}
-
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,6 +38,7 @@ mod tests {
     use assert_cmd::prelude::*;
     use datafusion::common::DataFusionError;
     use predicates::prelude::*;
+    use std::env;
     use std::process::Command;
 
     fn map_cargo_to_datafusion_error(e: CargoError) -> DataFusionError {
@@ -157,5 +139,3 @@ mod tests {
         Ok(())
     }*/
 }
-
- */

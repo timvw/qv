@@ -6,6 +6,7 @@ use clap::Parser;
 use datafusion::common::{DataFusionError, Result};
 use regex::Regex;
 use std::collections::HashMap;
+use std::env;
 use url::Url;
 
 #[derive(Parser, Debug)]
@@ -49,27 +50,66 @@ impl Args {
         query
     }
 
-    pub async fn get_globbing_path(&self, sdk_config: &SdkConfig) -> Result<GlobbingPath> {
-        let data_location = update_s3_console_url(&self.path);
-        let data_location = update_glue_url(sdk_config, &data_location).await;
-        GlobbingPath::parse(&data_location)
+    pub async fn get_globbing_path(&self) -> Result<(GlobbingPath, Option<SdkConfig>)> {
+        let (data_location, maybe_sdk_config) = match update_s3_console_url(&self.path) {
+            (true, updated_location) => (updated_location, Some(get_sdk_config(self).await)),
+            (false, location) => (location, None),
+        };
+
+        let (data_location, maybe_sdk_config) = match parse_glue_url(&data_location) {
+            // When the provided s looks like glue://database.table we lookup the storage location
+            // When the provided s does not look like glue://database.table, return s as is.
+            Some((database_name, table_name)) => {
+                let sdk_config = match maybe_sdk_config {
+                    Some(sdk_config) => sdk_config,
+                    None => get_sdk_config(self).await,
+                };
+
+                let storage_location =
+                    get_storage_location(&sdk_config, &database_name, &table_name)
+                        .await
+                        .unwrap_or_else(|_| {
+                            panic!(
+                                "failed to get storage location for {}.{}",
+                                database_name, table_name
+                            )
+                        });
+
+                (storage_location, Some(sdk_config))
+            }
+            None => (data_location, None),
+        };
+
+        let globbing_path = GlobbingPath::parse(&data_location)?;
+
+        let maybe_sdk_config = match maybe_sdk_config {
+            None if globbing_path.object_store_url.as_str().starts_with("s3") => {
+                Some(get_sdk_config(self).await)
+            }
+            _ => maybe_sdk_config,
+        };
+
+        Ok((globbing_path, maybe_sdk_config))
     }
 }
 
-/// When the provided s looks like glue://database.table we lookup the storage location
-/// When the provided s does not look like glue://database.table, return s as is.
-async fn update_glue_url(sdk_config: &SdkConfig, s: &str) -> String {
-    if let Some((database_name, table_name)) = parse_glue_url(s) {
-        get_storage_location(sdk_config, &database_name, &table_name)
-            .await
-            .unwrap_or_else(|_| {
-                panic!(
-                    "failed to get storage location for {}.{}",
-                    database_name, table_name
-                )
-            })
-    } else {
-        s.to_string()
+async fn get_sdk_config(args: &Args) -> SdkConfig {
+    set_aws_profile_when_needed(args);
+    set_aws_region_when_needed();
+
+    aws_config::load_from_env().await
+}
+
+fn set_aws_profile_when_needed(args: &Args) {
+    if let Some(aws_profile) = &args.profile {
+        env::set_var("AWS_PROFILE", aws_profile);
+    }
+}
+
+fn set_aws_region_when_needed() {
+    match env::var("AWS_DEFAULT_REGION") {
+        Ok(_) => {}
+        Err(_) => env::set_var("AWS_DEFAULT_REGION", "eu-central-1"),
     }
 }
 
@@ -131,7 +171,7 @@ fn test_parse_glue_url() {
 
 /// When the provided s looks like an https url from the amazon webui convert it to an s3:// url
 /// When the provided s does not like such url, return it as is.
-fn update_s3_console_url(s: &str) -> String {
+fn update_s3_console_url(s: &str) -> (bool, String) {
     if s.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
         let parsed_url = Url::parse(s).unwrap_or_else(|_| panic!("Failed to parse {}", s));
         let path_segments = parsed_url
@@ -151,12 +191,13 @@ fn update_s3_console_url(s: &str) -> String {
             params
                 .get("prefix")
                 .map(|prefix| format!("s3://{}/{}", bucket_name, prefix))
-                .unwrap_or_else(|| s.to_string())
+                .map(|x| (true, x))
+                .unwrap_or_else(|| (false, s.to_string()))
         } else {
-            s.to_string()
+            (false, s.to_string())
         }
     } else {
-        s.to_string()
+        (false, s.to_string())
     }
 }
 
@@ -164,9 +205,9 @@ fn update_s3_console_url(s: &str) -> String {
 fn test_update_s3_console_url() -> Result<()> {
     assert_eq!(
         update_s3_console_url("/Users/timvw/test"),
-        "/Users/timvw/test"
+        (false, "/Users/timvw/test".to_string())
     );
-    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false"), "s3://datafusion-delta-testing/COVID-19_NYT/");
-    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1"), "s3://datafusion-delta-testing/COVID-19_NYT/");
+    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false"), (true, "s3://datafusion-delta-testing/COVID-19_NYT/".to_string()));
+    assert_eq!(update_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1"), (true, "s3://datafusion-delta-testing/COVID-19_NYT/".to_string()));
     Ok(())
 }
