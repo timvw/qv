@@ -12,10 +12,12 @@ jobs:
     name: build + test + fmt + clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
         with:
           submodules: recursive
-      - uses: actions-rs/toolchain@v1
+      - name: Intall rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
@@ -32,31 +34,34 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
+      - name: Install required components
+        run: |
+          rustup component add rustfmt
+          rustup component add clippy
+          cargo install cargo-tarpaulin
+      - name: Run fmt
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: -- -D warnings
-      - run: rustup component add llvm-tools-preview
-      - run: export RUSTFLAGS="-Cinstrument-coverage"
-      - uses: actions-rs/cargo@v1
+      - name: Run tarpaulin
+        uses: actions-rs/cargo@v1
         with:
-          command: build
-      - run: export LLVM_PROFILE_FILE="qv-%p-%m.profraw"
-      - run: |
-          export QV_TESTING_PATH=/home/runner/work/qv/qv/testing
-          cargo install cargo2junit grcov;
-          cargo test -- -Z unstable-options --format json | cargo2junit > results.xml;
-      - name: Upload test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+          command: tarpaulin
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v1.0.2
         with:
-          check_name: Test Results
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          files: results.xml
+          fail_ci_if_error: true
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v1
+        with:
+          name: code-coverage-report
+          path: cobertura.xml
+
 
 
