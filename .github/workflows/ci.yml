@@ -55,9 +55,8 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH 
 
       - name: Run clippy
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/clippy-check@v1
         with:
-          command: clippy
           args: --all-features
 
 
