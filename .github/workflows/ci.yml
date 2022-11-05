@@ -69,7 +69,7 @@ jobs:
 
       - name: Upload clippy resutls
         run: |
-          cargo install cargo-action-fmt
+          cargo install cargo-action-fmt;
           cat clippy.json | cargo-action-fmt
 
       - name: Print sccache stats
