@@ -48,31 +48,6 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -- -Z unstable-options --format json --report-time | cargo2junit > results.xml
-      - name: Upload test results
-        uses: EnricoMi/publish-unit-test-result-action@v1
-        with:
-          check_name: Test Results
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          files: results.xml
-      - name: Run code coverage
-        uses: actions-rs/cargo@v1
-        with:
-          command: tarpaulin
-          args: --out Xml
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v1
-        with:
-          name: code-coverage-report
-          path: cobertura.xml
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true
 
 
 
