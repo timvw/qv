@@ -8,7 +8,7 @@ on:
 
 env:
   RUST_BACKTRACE: full
-  #RUSTC_WRAPPER: sccache
+  RUSTC_WRAPPER: sccache
   SCCACHE_CACHE_SIZE: 2G
   SCCACHE_DIR: /home/runner/.cache/sccache
 
@@ -55,10 +55,8 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH 
 
       - name: Run clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --all-targets --workspace -- -D warnings
+        run: |
+          cargo clippy --all-features --all-targets --workspace -- -D warnings
 
 
 
