@@ -64,7 +64,7 @@ jobs:
         run: sccache --start-server
 
       - name: Run clippy
-        run: ci/clippy.sh
+        run: ./ci/clippy.sh
 
       - name: Print sccache stats
         run: sccache --show-stats
