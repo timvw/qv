@@ -57,7 +57,7 @@ jobs:
 
       - name: Run clippy
         run: |
-          cargo clippy --all-features --all-targets --workspace --message-format jso
+          cargo clippy --all-features --all-targets --workspace --message-format json
 
 
 
