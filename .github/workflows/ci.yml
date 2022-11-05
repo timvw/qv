@@ -55,9 +55,18 @@ jobs:
           chmod a+x $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH 
 
+      - name: Start sccache server
+        run: sccache --start-server
+
       - name: Run clippy
         run: |
           cargo clippy --all-features --all-targets --workspace --message-format json
+
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true
+
 
 
 
