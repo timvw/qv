@@ -8,7 +8,7 @@ on:
 
 env:
   RUST_BACKTRACE: full
-  RUSTC_WRAPPER: sccache
+  #RUSTC_WRAPPER: sccache
   SCCACHE_CACHE_SIZE: 2G
   SCCACHE_DIR: /home/runner/.cache/sccache
 
