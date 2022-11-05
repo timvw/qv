@@ -66,7 +66,7 @@ jobs:
       - name: Run clippy
         run: |
           cargo install cargo-action-fmt
-          cargo clippy --all-features --all-targets --workspace --message-format json | cargo-action-fmt
+          cargo clippy -q --all-features --all-targets --workspace --message-format json | cargo-action-fmt
 
       - name: Print sccache stats
         run: sccache --show-stats
