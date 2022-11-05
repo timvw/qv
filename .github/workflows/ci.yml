@@ -65,12 +65,8 @@ jobs:
 
       - name: Run clippy
         run: |
-          cargo clippy --all-features --all-targets --workspace --message-format json > clippy.json
-
-      - name: Upload clippy resutls
-        run: |
-          cargo install cargo-action-fmt;
-          cat clippy.json | cargo-action-fmt
+          cargo install cargo-action-fmt
+          cargo clippy --all-features --all-targets --workspace --message-format json | cargo-action-fmt
 
       - name: Print sccache stats
         run: sccache --show-stats
