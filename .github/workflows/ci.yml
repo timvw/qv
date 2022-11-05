@@ -65,7 +65,13 @@ jobs:
 
       - name: Run clippy
         run: |
-          cargo clippy --all-features --all-targets --workspace --message-format json
+          cargo clippy --all-features --all-targets --workspace --message-format json > clippy.json
+          
+      - name: Upload clippy
+      - uses: actions/upload-artifact@v3
+        with:
+          name: clippy.json
+          path: clippy.json
 
       - name: Print sccache stats
         run: sccache --show-stats
