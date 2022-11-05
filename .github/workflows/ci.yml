@@ -64,9 +64,8 @@ jobs:
         run: sccache --start-server
 
       - name: Run clippy
-        run: |
-          cargo install cargo-action-fmt
-          cargo clippy | cargo-action-fmt
+        run: ci/clippy.sh
+
       - name: Print sccache stats
         run: sccache --show-stats
       - name: Stop sccache server

@@ -22,6 +22,8 @@ if ! command -v cargo-tomlfmt &> /dev/null; then
     cargo install cargo-tomlfmt
 fi
 
+script_dir=$(dirname "$0")
+
 cargo fmt
-cargo clippy --all-features --all-targets --workspace -- -D warnings
+$script_dir/../ci/clippy.sh
 cargo tomlfmt -p ./Cargo.toml
