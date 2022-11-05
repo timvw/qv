@@ -7,11 +7,10 @@ on:
   pull_request:
 
 env:
-  sccache-path: /home/runner/.cache/sccache
   RUST_BACKTRACE: full
   RUSTC_WRAPPER: sccache
   SCCACHE_CACHE_SIZE: 2G
-  SCCACHE_DIR: ${{ sccache-path }}
+  SCCACHE_DIR: /home/runner/.cache/sccache
 
 jobs:
   test:
@@ -33,7 +32,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-            ${{ sccache-path }}
+            ${{ SCCACHE_DIR }}
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
