@@ -90,7 +90,6 @@ mod tests {
         Ok(())
     }
 
-    /* only works when object_store is released with profile support and is used insted of aws-rust-sdk to get credentials etc
     use object_store::aws::AmazonS3Builder;
     use object_store::path::Path;
     use object_store::ObjectStore;
@@ -137,5 +136,5 @@ mod tests {
         df.show_limit(10).await?;
 
         Ok(())
-    }*/
+    }
 }
