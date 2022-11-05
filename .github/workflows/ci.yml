@@ -6,48 +6,82 @@ on:
       - main
   pull_request:
 
-jobs:
+env:
+  RUST_BACKTRACE: full
+  RUSTC_WRAPPER: sccache
+  SCCACHE_CACHE_SIZE: 2G
+  SCCACHE_DIR: /home/runner/.cache/sccache
 
+jobs:
   test:
-    name: build + test + fmt + clippy
+    name: fmt + clippy + build + test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           submodules: recursive
-      - name: Intall rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
         with:
           path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
+            ~/.cargo
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - name: Install required components
+
+      - name: Set up sccache cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ${{ env.SCCACHE_DIR }}
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-sccache-
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install sccache (ubuntu-latest)
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: v0.3.0
         run: |
-          rustup component add rustfmt clippy
-          cargo install cargo-tarpaulin cargo2junit
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          chmod a+x $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH 
+
+      - name: Start sccache server
+        run: sccache --start-server
+
       - name: Run fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
+
       - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+        run: cargo clippy --all-features --all-targets --workspace -- -D warnings
+
+      - name: Run build
+        run: cargo build
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true
+
+
+
 
 
 
