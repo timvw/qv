@@ -67,8 +67,10 @@ jobs:
         run: |
           cargo clippy --all-features --all-targets --workspace --message-format json > clippy.json
 
-      - uses: olix0r/cargo-action-fmt@v1.0.1
-        run: cat clippy.json | cargo-action-fmt
+      - name: Upload clippy resutls
+        uses: olix0r/cargo-action-fmt@v1.0.1
+        run: |
+          cat clippy.json | cargo-action-fmt
 
       - name: Print sccache stats
         run: sccache --show-stats
