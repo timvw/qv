@@ -25,5 +25,5 @@ fi
 script_dir=$(dirname "$0")
 
 cargo fmt
-$script_dir/../ci/clippy.sh
+cargo clippy --all-features --all-targets --workspace -- -D warnings
 cargo tomlfmt -p ./Cargo.toml

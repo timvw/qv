@@ -14,7 +14,7 @@ env:
 
 jobs:
   test:
-    name: build + test + fmt + clippy
+    name: fmt + clippy + build + test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -63,8 +63,17 @@ jobs:
       - name: Start sccache server
         run: sccache --start-server
 
+      - name: Run fmt
+        run: cargo fmt --all -- --check
+
       - name: Run clippy
-        run: ./ci/clippy.sh
+        run: cargo clippy --all-features --all-targets --workspace -- -D warnings
+
+      - name: Run build
+        run: cargo build
+
+      - name: Run tests
+        run: cargo test
 
       - name: Print sccache stats
         run: sccache --show-stats
