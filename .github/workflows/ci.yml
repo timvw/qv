@@ -52,47 +52,34 @@ jobs:
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
           SCCACHE_VERSION: v0.3.0
-        run: |
-          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
-          mkdir -p $HOME/.local/bin
-          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
-          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
-          chmod a+x $HOME/.local/bin/sccache
-          echo "$HOME/.local/bin" >> $GITHUB_PATH 
+        run: ./ci/install_sccache_linux.sh
 
       - name: Start sccache server
-        run: sccache --start-server
+        run: ./ci/sccache_start_server.sh
 
       - name: Run fmt
-        run: cargo fmt --all -- --check
+        run: ./ci/cargo_fmt_check.sh
 
       - name: Run clippy
-        run: cargo clippy --all-features --all-targets --workspace -- -D warnings
+        run: ./ci/cargo_clippy.sh
 
       - name: Run build
-        run: cargo build
+        run: ./ci/cargo_build.sh
 
-      - name: Setup minio
-        run: |
-          docker run \
-          --detach \
-          --rm \
-          --publish 9000:9000 \
-          --publish 9001:9001 \
-          --name minio \
-          --volume "$PWD/testing:/data" \
-          --env "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
-          --env "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
-          quay.io/minio/minio:RELEASE.2022-05-26T05-48-41Z server /data \
-          --console-address ":9001"
+      - name: Start minio
+        run: ./ci/minio_start.sh
 
       - name: Run tests
-        run: cargo test
+        run: ./ci/cargo_test.sh
+
+      - name: Stop minio
+        run: ./ci/minio_stop.sh
 
       - name: Print sccache stats
-        run: sccache --show-stats
+        run: ./ci/sccache_show_stats.sh
+
       - name: Stop sccache server
-        run: sccache --stop-server || true
+        run: ./ci/sccache_stop_server.sh
 
 
 
