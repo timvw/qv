@@ -1,0 +1,1 @@
+sccache --show-stats
