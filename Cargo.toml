@@ -18,11 +18,11 @@ aws-sdk-glue = "0.21.0"
 aws-types = "0.51"
 chrono = "0.4.22"
 clap = { version = "4.0.20", features = ["derive"] }
-datafusion = { version = "13", features = ["avro"] }
-deltalake = { git = "https://github.com/timvw/delta-rs", branch = "datafusion-13", default-features = false, features = ["datafusion-ext", "s3-rustls"] }
+datafusion = { version = "14", features = ["avro"] }
+deltalake = { git = "https://github.com/timvw/delta-rs", branch = "datafusion-14", default-features = false, features = ["datafusion-ext", "s3-rustls"] }
 futures = "0.3"
 glob = "0.3.0"
-iceberg-rs = { git = "https://github.com/timvw/iceberg-rs", branch = "datafusion-13", features = ["datafusion-ext"] }
+iceberg-rs = { git = "https://github.com/timvw/iceberg-rs", branch = "datafusion-14", features = ["datafusion-ext"] }
 object_store = { version = "0.5.1", features = ["aws", "gcp"] }
 regex = "1.7.0"
 tokio = { version = "1.21", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
