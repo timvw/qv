@@ -30,4 +30,4 @@ url = "2.3"
 
 [dev-dependencies]
 assert_cmd = "2.0.6"
-predicates = "2.1.2"
+predicates = "2.1.3"
