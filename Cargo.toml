@@ -17,7 +17,7 @@ aws-config = "0.51"
 aws-sdk-glue = "0.21.0"
 aws-types = "0.51"
 chrono = "0.4.23"
-clap = { version = "4.0.27", features = ["derive"] }
+clap = { version = "4.0.28", features = ["derive"] }
 datafusion = { version = "14", features = ["avro"] }
 deltalake = { git = "https://github.com/timvw/delta-rs", branch = "datafusion-14", default-features = false, features = ["datafusion-ext", "s3-rustls"] }
 futures = "0.3"
