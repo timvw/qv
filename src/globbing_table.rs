@@ -9,7 +9,6 @@ use datafusion::error::DataFusionError;
 use datafusion::prelude::SessionContext;
 use deltalake::storage::DeltaObjectStore;
 use deltalake::{DeltaTable, DeltaTableConfig, StorageUrl};
-use iceberg_rs::datafusion::DataFusionTable;
 use object_store::path::Path;
 use object_store::ObjectMeta;
 use std::sync::Arc;
@@ -35,10 +34,6 @@ pub async fn build_table_provider(
         )
         .await?;
         Arc::new(delta_table)
-    } else if has_metadata_folder(&store, &globbing_path.prefix).await? {
-        let iceberg_table =
-            load_iceberg_table(ctx, &globbing_path.object_store_url, &globbing_path.prefix).await?;
-        Arc::new(iceberg_table)
     } else {
         let listing_table = load_listing_table(ctx, globbing_path).await?;
         Arc::new(listing_table)
@@ -104,16 +99,4 @@ async fn load_delta_table(
     delta_table_load_result
         .map(|_| delta_table)
         .map_err(|dte| DataFusionError::External(Box::new(dte)))
-}
-
-async fn load_iceberg_table(
-    ctx: &SessionContext,
-    object_store_url: &ObjectStoreUrl,
-    path: &Path,
-) -> Result<DataFusionTable> {
-    let store = ctx.runtime_env().object_store(object_store_url)?;
-    let iceberg_table = iceberg_rs::table::Table::load_file_system_table(path.as_ref(), &store)
-        .await
-        .map_err(|e| DataFusionError::Execution(format!("failed to load iceberg table {}", e)))?;
-    Ok(DataFusionTable::from(iceberg_table))
 }

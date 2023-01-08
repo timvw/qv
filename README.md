@@ -35,8 +35,7 @@ For more examples consult our [Usage examples](Usage.md).
 * Run SQL against files
 * View file schemas
 * Supported formats:
-  - [Deltalake](https://delta.io/) (No need for manifest file)
-  - [Iceberg](https://iceberg.apache.org/)
+  - [Deltalake](https://delta.io/)
   - [Parquet](https://parquet.apache.org/)
   - [Avro](https://avro.apache.org/)
   - CSV

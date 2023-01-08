@@ -126,20 +126,6 @@ fn test_is_hidden() {
     assert!(is_hidden(&Path::parse("a/.hidden/b").unwrap()));
 }
 
-/// Determines whether there is an iceberg table
-pub async fn has_metadata_folder(store: &Arc<dyn ObjectStore>, prefix: &Path) -> Result<bool> {
-    let to_probe = Path::parse(format!("{}/metadata", prefix))?;
-    let predicate = |meta: &ObjectMeta| {
-        let json_file = meta.location.as_ref().ends_with(".json");
-        json_file
-    };
-    let result: bool = list_matching_files(store, &to_probe, predicate)
-        .await
-        .map(|files| !files.is_empty())
-        .unwrap_or_else(|_| false);
-    Ok(result)
-}
-
 /// Determines whether there is a _delta_log folder
 pub async fn has_delta_log_folder(store: &Arc<dyn ObjectStore>, prefix: &Path) -> Result<bool> {
     let to_probe = Path::parse(format!("{}/_delta_log", prefix))?;
