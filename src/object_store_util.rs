@@ -1,8 +1,6 @@
-use aws_types::credentials::ProvideCredentials;
 use aws_types::SdkConfig;
 use datafusion::common::Result;
 use datafusion::datasource::object_store::ObjectStoreUrl;
-use datafusion::error::DataFusionError;
 use datafusion::prelude::SessionContext;
 use futures::TryStreamExt;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
@@ -19,11 +17,8 @@ pub async fn register_object_store(
     object_store_url: &ObjectStoreUrl,
 ) -> Result<()> {
     if object_store_url.as_str().starts_with("s3://") {
-        let sdk_config = maybe_sdk_config.as_ref().ok_or_else(|| {
-            DataFusionError::Execution(String::from("Expected aws sdk config to be available"))
-        })?;
         let bucket_name = extract_bucket_name(object_store_url);
-        let s3 = build_s3_from_sdk_config(&bucket_name, sdk_config).await?;
+        let s3 = build_s3(&bucket_name).await?;
         ctx.runtime_env()
             .register_object_store("s3", &bucket_name, Arc::new(s3));
     }
@@ -57,30 +52,9 @@ fn build_gcs(bucket_name: &str) -> Result<GoogleCloudStorage> {
     Ok(gcs)
 }
 
-async fn build_s3_from_sdk_config(bucket_name: &str, sdk_config: &SdkConfig) -> Result<AmazonS3> {
-    let credentials_providder = sdk_config
-        .credentials_provider()
-        .expect("could not find credentials provider");
-    let credentials = credentials_providder
-        .provide_credentials()
-        .await
-        .expect("could not load credentials");
-
-    let s3_builder = AmazonS3Builder::new()
+async fn build_s3(bucket_name: &str) -> Result<AmazonS3> {
+    let s3 = AmazonS3Builder::from_env()
         .with_bucket_name(bucket_name)
-        .with_region(
-            sdk_config
-                .region()
-                .expect("could not find region")
-                .to_string(),
-        )
-        .with_access_key_id(credentials.access_key_id())
-        .with_secret_access_key(credentials.secret_access_key());
-
-    let s3 = match credentials.session_token() {
-        Some(session_token) => s3_builder.with_token(session_token),
-        None => s3_builder,
-    }
     .build()?;
 
     Ok(s3)
