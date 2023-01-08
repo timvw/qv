@@ -1,4 +1,3 @@
-use aws_types::SdkConfig;
 use datafusion::common::Result;
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
@@ -12,7 +11,6 @@ use std::sync::Arc;
 use url::Url;
 
 pub async fn register_object_store(
-    maybe_sdk_config: &Option<SdkConfig>,
     ctx: &SessionContext,
     object_store_url: &ObjectStoreUrl,
 ) -> Result<()> {
@@ -55,7 +53,7 @@ fn build_gcs(bucket_name: &str) -> Result<GoogleCloudStorage> {
 async fn build_s3(bucket_name: &str) -> Result<AmazonS3> {
     let s3 = AmazonS3Builder::from_env()
         .with_bucket_name(bucket_name)
-    .build()?;
+        .build()?;
 
     Ok(s3)
 }

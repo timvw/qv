@@ -50,13 +50,13 @@ impl Args {
         query
     }
 
-    pub async fn get_globbing_path(&self) -> Result<(GlobbingPath, Option<SdkConfig>)> {
+    pub async fn get_globbing_path(&self) -> Result<GlobbingPath> {
         let (data_location, maybe_sdk_config) = match update_s3_console_url(&self.path) {
             (true, updated_location) => (updated_location, Some(get_sdk_config(self).await)),
             (false, location) => (location, None),
         };
 
-        let (data_location, maybe_sdk_config) = match parse_glue_url(&data_location) {
+        let data_location = match parse_glue_url(&data_location) {
             // When the provided s looks like glue://database.table we lookup the storage location
             // When the provided s does not look like glue://database.table, return s as is.
             Some((database_name, table_name)) => {
@@ -75,21 +75,13 @@ impl Args {
                             )
                         });
 
-                (storage_location, Some(sdk_config))
+                storage_location
             }
-            None => (data_location, None),
+            None => data_location,
         };
 
         let globbing_path = GlobbingPath::parse(&data_location)?;
-
-        let maybe_sdk_config = match maybe_sdk_config {
-            None if globbing_path.object_store_url.as_str().starts_with("s3") => {
-                Some(get_sdk_config(self).await)
-            }
-            _ => maybe_sdk_config,
-        };
-
-        Ok((globbing_path, maybe_sdk_config))
+        Ok(globbing_path)
     }
 }
 

@@ -18,8 +18,8 @@ async fn main() -> Result<()> {
     let ctx = SessionContext::with_config(config);
 
     let args: Args = Args::parse();
-    let (globbing_path, maybe_sdk_config) = args.get_globbing_path().await?;
-    register_object_store(&maybe_sdk_config, &ctx, &globbing_path.object_store_url).await?;
+    let globbing_path = args.get_globbing_path().await?;
+    register_object_store(&ctx, &globbing_path.object_store_url).await?;
 
     let table_arc = build_table_provider(&ctx, &globbing_path, &args.at).await?;
     ctx.register_table("tbl", table_arc)?;
