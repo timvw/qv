@@ -28,5 +28,5 @@ tokio = { version = "1.24", features = ["macros", "rt", "rt-multi-thread", "sync
 url = "2.3"
 
 [dev-dependencies]
-assert_cmd = "2.0.7"
+assert_cmd = "2.0.8"
 predicates = "2.1.5"
