@@ -85,8 +85,12 @@ mod tests {
         ));
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains(r#"| reply                                        | blog_id              |"#, ))
-            .stdout(predicate::str::contains(r#"| {reply_id: 332770973, next_id: }             | -1473106667809783919 |"#, ));
+            .stdout(predicate::str::contains(
+                r#"| reply                                        | blog_id              |"#,
+            ))
+            .stdout(predicate::str::contains(
+                r#"| {reply_id: 332770973, next_id: }             | -1473106667809783919 |"#,
+            ));
         Ok(())
     }
 }

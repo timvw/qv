@@ -18,15 +18,13 @@ pub async fn register_object_store(
         let bucket_name = extract_bucket_name(object_store_url);
         let s3 = build_s3(&bucket_name).await?;
         let url = Url::parse(object_store_url.as_str()).unwrap();
-        ctx.runtime_env()
-            .register_object_store(&url, Arc::new(s3));
+        ctx.runtime_env().register_object_store(&url, Arc::new(s3));
     }
     if object_store_url.as_str().starts_with("gs://") {
         let bucket_name = extract_bucket_name(object_store_url);
         let gcs = build_gcs(&bucket_name)?;
         let url = Url::parse(object_store_url.as_str()).unwrap();
-        ctx.runtime_env()
-            .register_object_store(&url, Arc::new(gcs));
+        ctx.runtime_env().register_object_store(&url, Arc::new(gcs));
         todo!()
     }
     Ok(())
