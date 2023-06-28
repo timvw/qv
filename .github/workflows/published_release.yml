@@ -17,7 +17,7 @@ jobs:
       -
         name: Get version
         id: get-version
-        run: echo ::set-output name=version::``$(echo ${{ github.event.release.tag_name }} | cut -dv -f2)``
+        run: echo "version=``$(echo ${{ github.event.release.tag_name }} | cut -dv -f2)``" >> $GITHUB_OUTPUT
         shell: bash
       -
         name: Delete release branch

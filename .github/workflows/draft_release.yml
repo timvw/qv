@@ -38,7 +38,7 @@ jobs:
         run: |
           git add Cargo.toml
           git commit --message "Prepare release ${{ github.event.inputs.version }}"
-          echo "::set-output name=commitish::$(git rev-parse HEAD)"
+          echo "commitish=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
         shell: bash
       -
         name: Push new branch

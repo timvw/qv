@@ -74,7 +74,7 @@ jobs:
      -
        name: Get version
        id: get-version
-       run: echo ::set-output name=version::``$(echo ${{ inputs.tag_name }} | cut -dv -f2)``
+       run: echo "version=``$(echo ${{ inputs.tag_name }} | cut -dv -f2)``" >> $GITHUB_OUTPUT
        shell: bash
      -
        name: Update formula
