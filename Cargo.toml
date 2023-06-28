@@ -13,20 +13,20 @@ keywords = [ "quickview", "data", "query", "sql", "datafusion" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aws-config = "0.53"
-aws-sdk-glue = "0.23.0"
-aws-types = "0.53"
-chrono = "0.4.23"
-clap = { version = "4.1.1", features = ["derive"] }
-datafusion = { version = "15", features = ["avro"] }
-deltalake = { git = "https://github.com/timvw/delta-rs", branch = "main", default-features = false, features = ["datafusion-ext", "s3-rustls"] }
+aws-config = "0.55"
+aws-sdk-glue = "0.28.0"
+aws-types = "0.55"
+chrono = "0.4.26"
+clap = { version = "4.3.5", features = ["derive"] }
+datafusion = { version = "25", features = ["avro"] }
+deltalake = { version = "0.12.0", default-features = false, features = ["datafusion-ext", "s3"] }
 futures = "0.3"
 glob = "0.3.1"
-object_store = { version = "0.5.3", features = ["aws", "gcp", "aws_profile"] }
-regex = "1.7.1"
-tokio = { version = "1.24", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
-url = "2.3"
+object_store = { version = "0.5.6", features = ["aws", "gcp", "aws_profile"] }
+regex = "1.8"
+tokio = { version = "1.28.2", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
+url = "2.4"
 
 [dev-dependencies]
-assert_cmd = "2.0.8"
-predicates = "2.1.5"
+assert_cmd = "2.0.11"
+predicates = "3.0.3"

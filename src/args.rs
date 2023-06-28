@@ -13,7 +13,7 @@ use url::Url;
 #[clap(author, version, about, long_about = None)]
 pub struct Args {
     /// Location where the data is located
-    path: String,
+    pub path: String,
 
     /// Query to execute
     #[clap(short, long, default_value_t = String::from("select * from tbl"), group = "sql")]

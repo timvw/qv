@@ -1,5 +1,8 @@
 use clap::Parser;
+use datafusion::catalog::TableReference;
+
 use datafusion::common::Result;
+use datafusion::datasource::listing::{ListingOptions, ListingTableConfig};
 use datafusion::prelude::*;
 
 mod args;
@@ -22,11 +25,12 @@ async fn main() -> Result<()> {
     register_object_store(&ctx, &globbing_path.object_store_url).await?;
 
     let table_arc = build_table_provider(&ctx, &globbing_path, &args.at).await?;
-    ctx.register_table("tbl", table_arc)?;
+    let table_ref = TableReference::full("datafusion", "public", "tbl");
+    ctx.register_table(table_ref, table_arc)?;
 
     let query = &args.get_query();
     let df = ctx.sql(query).await?;
-    df.show_limit(args.limit).await?;
+    df.show_limit(10).await?;
 
     Ok(())
 }
