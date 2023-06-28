@@ -8,10 +8,11 @@ use datafusion::datasource::TableProvider;
 use datafusion::error::DataFusionError;
 use datafusion::prelude::SessionContext;
 use deltalake::storage::DeltaObjectStore;
-use deltalake::{DeltaTable, DeltaTableConfig, StorageUrl};
+use deltalake::{DeltaTable, DeltaTableConfig};
 use object_store::path::Path;
 use object_store::ObjectMeta;
 use std::sync::Arc;
+use url::Url;
 
 /// Build a table provider for the globbing_path
 /// When a globbing pattern is present a ListingTable will be built (using the non-hidden files which match the globbing pattern)
@@ -87,8 +88,8 @@ async fn load_delta_table(
 ) -> Result<DeltaTable> {
     let store = ctx.runtime_env().object_store(object_store_url)?;
     let data_location = format!("{}{}", &object_store_url.as_str(), &path.as_ref());
-    let delta_storage_url = StorageUrl::parse(&data_location).expect("failed to parse storage url");
-    let delta_storage = DeltaObjectStore::new(delta_storage_url, store);
+    let delta_storage_url = Url::parse(&data_location).expect("failed to parse storage url");
+    let delta_storage = DeltaObjectStore::new(store, delta_storage_url);
     let delta_config = DeltaTableConfig::default();
     let mut delta_table = DeltaTable::new(Arc::new(delta_storage), delta_config);
     let delta_table_load_result = match *maybe_at {

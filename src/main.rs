@@ -1,4 +1,6 @@
 use clap::Parser;
+use datafusion::catalog::TableReference;
+
 use datafusion::common::Result;
 use datafusion::prelude::*;
 
@@ -22,11 +24,12 @@ async fn main() -> Result<()> {
     register_object_store(&ctx, &globbing_path.object_store_url).await?;
 
     let table_arc = build_table_provider(&ctx, &globbing_path, &args.at).await?;
-    ctx.register_table("tbl", table_arc)?;
+    let table_ref = TableReference::full("datafusion", "public", "tbl");
+    ctx.register_table(table_ref, table_arc)?;
 
     let query = &args.get_query();
     let df = ctx.sql(query).await?;
-    df.show_limit(args.limit).await?;
+    df.show_limit(10).await?;
 
     Ok(())
 }
@@ -64,7 +67,7 @@ mod tests {
         let cmd = cmd.arg(get_qv_testing_path("data/avro/alltypes_plain.avro"));
         cmd.assert().success()
             .stdout(predicate::str::contains("| id | bool_col | tinyint_col | smallint_col | int_col | bigint_col | float_col | double_col | date_string_col  | string_col | timestamp_col       |"))
-            .stdout(predicate::str::contains("| 4  | true     | 0           | 0            | 0       | 0          | 0         | 0          | 30332f30312f3039 | 30         | 2009-03-01T00:00:00 |"));
+            .stdout(predicate::str::contains("| 4  | true     | 0           | 0            | 0       | 0          | 0.0       | 0.0        | 30332f30312f3039 | 30         | 2009-03-01T00:00:00 |"));
         Ok(())
     }
 
@@ -82,10 +85,10 @@ mod tests {
         cmd.assert()
             .success()
             .stdout(predicate::str::contains(
-                r#"| reply                                            | blog_id              |"#,
+                r#"| reply                                        | blog_id              |"#,
             ))
             .stdout(predicate::str::contains(
-                r#"| {"reply_id": 332770973, "next_id": null}         | -1473106667809783919 |"#,
+                r#"| {reply_id: 332770973, next_id: }             | -1473106667809783919 |"#,
             ));
         Ok(())
     }
