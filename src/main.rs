@@ -2,7 +2,6 @@ use clap::Parser;
 use datafusion::catalog::TableReference;
 
 use datafusion::common::Result;
-use datafusion::datasource::listing::{ListingOptions, ListingTableConfig};
 use datafusion::prelude::*;
 
 mod args;
