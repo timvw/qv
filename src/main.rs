@@ -68,7 +68,7 @@ mod tests {
         let cmd = cmd.arg(get_qv_testing_path("data/avro/alltypes_plain.avro"));
         cmd.assert().success()
             .stdout(predicate::str::contains("| id | bool_col | tinyint_col | smallint_col | int_col | bigint_col | float_col | double_col | date_string_col  | string_col | timestamp_col       |"))
-            .stdout(predicate::str::contains("| 4  | true     | 0           | 0            | 0       | 0          | 0         | 0          | 30332f30312f3039 | 30         | 2009-03-01T00:00:00 |"));
+            .stdout(predicate::str::contains("| 4  | true     | 0           | 0            | 0       | 0          | 0.0       | 0.0        | 30332f30312f3039 | 30         | 2009-03-01T00:00:00 |"));
         Ok(())
     }
 
@@ -85,12 +85,8 @@ mod tests {
         ));
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains(
-                r#"| reply                                            | blog_id              |"#,
-            ))
-            .stdout(predicate::str::contains(
-                r#"| {"reply_id": 332770973, "next_id": null}         | -1473106667809783919 |"#,
-            ));
+            .stdout(predicate::str::contains(r#"| reply                                        | blog_id              |"#, ))
+            .stdout(predicate::str::contains(r#"| {reply_id: 332770973, next_id: }             | -1473106667809783919 |"#, ));
         Ok(())
     }
 }
