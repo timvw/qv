@@ -38,8 +38,8 @@ For more examples consult our [Usage examples](Usage.md).
   - [Deltalake](https://delta.io/)
   - [Parquet](https://parquet.apache.org/)
   - [Avro](https://avro.apache.org/)
-  - CSV
-  - JSON
+  - [CSV](https://en.wikipedia.org/wiki/Comma-separated_values)
+  - [NDJSON](http://ndjson.org/)
 * Supported storage sytems: 
   - local file system
   - [S3](https://aws.amazon.com/s3/) (+ https links from AWS S3 console)
