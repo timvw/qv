@@ -10,8 +10,6 @@ on:
         type: string
         required: true
     secrets:
-      CARGO_REGISTRY_TOKEN:
-        required: true
       COMMITTER_TOKEN:
         required: true
 
@@ -42,30 +40,6 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}:${{ inputs.tag_name }}
-
-  publish_crate:
-    name: Publish crate ${{ inputs.tag_name }}
-    runs-on: ubuntu-latest
-    steps:
-      -
-        name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.tag_name }}
-          submodules: true
-      -
-        name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-unknown-linux-gnu
-          override: true
-          default: true
-      -
-        name: Publish crate
-        run: cargo publish
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   publish_homebrew_formula_update:
    name: Publish Homebrew formula update

@@ -32,6 +32,5 @@ jobs:
       app_name: "qv"
       tag_name: ${{ github.event.release.tag_name }}
     secrets:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
 
