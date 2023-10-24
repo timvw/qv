@@ -28,22 +28,13 @@ jobs:
           # Linux
           - {os: ubuntu-20.04, toolchain: stable, target: x86_64-unknown-linux-gnu, target_cpu: generic, cross: false}
           - {os: ubuntu-20.04, toolchain: stable, target: x86_64-unknown-linux-gnu, target_cpu: broadwell, cross: false}
-          - {os: ubuntu-20.04, toolchain: stable, target: aarch64-unknown-linux-gnu, target_cpu: generic, cross: true}
-          - {os: ubuntu-20.04, toolchain: stable, target: arm-unknown-linux-gnueabi, target_cpu: generic, cross: true}
-          - {os: ubuntu-20.04, toolchain: stable, target: armv7-unknown-linux-gnueabihf, target_cpu: generic, cross: true}
-          # mips and powerpc are not compitble with ring v0.16.10, so they are disabled for now
-          #          - {os: ubuntu-18.04, target: mips64el-unknown-linux-gnuabi64, cross: true}
-          #          - {os: ubuntu-18.04, target: powerpc64le-unknown-linux-gnu, cross: true}
           - {os: ubuntu-20.04, toolchain: stable,  target: x86_64-unknown-linux-musl, target_cpu: generic, cross: true}
           - {os: ubuntu-20.04, toolchain: stable,  target: x86_64-unknown-linux-musl, target_cpu: broadwell, cross: true}
-          - {os: ubuntu-20.04, toolchain: stable, target: aarch64-linux-android, target_cpu: generic, cross: true}
           # Macos
           - {os: macos-latest, toolchain: stable, target: x86_64-apple-darwin, target_cpu: generic, cross: false}
           - {os: macos-latest, toolchain: stable, target: x86_64-apple-darwin, target_cpu: broadwell, cross: false}
           # Windows
-          #- {os: windows-latest, toolchain: stable-x86_64-pc-windows-gnu, target: x86_64-pc-windows-gnu, target_cpu: generic, cross: false}
           - {os: windows-latest, toolchain: stable-x86_64-pc-windows-msvc, target: x86_64-pc-windows-msvc, target_cpu: generic, cross: false}
-          #- {os: windows-latest, toolchain: stable-x86_64-pc-windows-gnu, target: x86_64-pc-windows-gnu, target_cpu: broadwell, cross: false}
           - {os: windows-latest, toolchain: stable-x86_64-pc-windows-msvc, target: x86_64-pc-windows-msvc, target_cpu: broadwell, cross: false}
     steps:
       -
