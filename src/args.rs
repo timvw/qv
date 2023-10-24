@@ -176,7 +176,7 @@ fn update_s3_console_url(s: &str) -> (bool, String) {
                         .into_owned()
                         .collect()
                 })
-                .unwrap_or_else(HashMap::new);
+                .unwrap_or_default();
             params
                 .get("prefix")
                 .map(|prefix| format!("s3://{}/{}", bucket_name, prefix))
