@@ -1,3 +1,4 @@
+/*
 use datafusion::common::Result;
 use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
@@ -153,3 +154,4 @@ mod tests {
         Ok(())
     }
 }
+ */

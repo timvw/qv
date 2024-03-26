@@ -1,3 +1,4 @@
+/*
 use crate::object_store_util::*;
 use crate::GlobbingPath;
 use chrono::{DateTime, Utc};
@@ -7,8 +8,8 @@ use datafusion::datasource::object_store::ObjectStoreUrl;
 use datafusion::datasource::TableProvider;
 use datafusion::error::DataFusionError;
 use datafusion::prelude::SessionContext;
-use deltalake::storage::DeltaObjectStore;
-use deltalake::{DeltaTable, DeltaTableConfig};
+//use deltalake::storage::DeltaObjectStore;
+//use deltalake::{DeltaTable, DeltaTableConfig};
 use object_store::path::Path;
 use object_store::ObjectMeta;
 use std::sync::Arc;
@@ -24,20 +25,24 @@ pub async fn build_table_provider(
     maybe_at: &Option<DateTime<Utc>>,
 ) -> Result<Arc<dyn TableProvider>> {
     let store = globbing_path.get_store(ctx)?;
-    let table_arc: Arc<dyn TableProvider> =
-        if has_delta_log_folder(&store, &globbing_path.prefix).await? {
-            let delta_table = load_delta_table(
-                ctx,
-                &globbing_path.object_store_url,
-                &globbing_path.prefix,
-                maybe_at,
-            )
-            .await?;
-            Arc::new(delta_table)
-        } else {
-            let listing_table = load_listing_table(ctx, globbing_path).await?;
-            Arc::new(listing_table)
-        };
+    let table_arc: Arc<dyn TableProvider> = {
+        let listing_table = load_listing_table(ctx, globbing_path).await?;
+        Arc::new(listing_table)
+    };
+    /*
+    if has_delta_log_folder(&store, &globbing_path.prefix).await? {
+        let delta_table = load_delta_table(
+            ctx,
+            &globbing_path.object_store_url,
+            &globbing_path.prefix,
+            maybe_at,
+        )
+        .await?;
+        Arc::new(delta_table)
+    } else {
+        let listing_table = load_listing_table(ctx, globbing_path).await?;
+        Arc::new(listing_table)
+    };*/
     Ok(table_arc)
 }
 
@@ -99,4 +104,4 @@ async fn load_delta_table(
     delta_table_load_result
         .map(|_| delta_table)
         .map_err(|dte| DataFusionError::External(Box::new(dte)))
-}
+}*/
