@@ -17,7 +17,7 @@ use crate::globbing_path::GlobbingPath;
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = SessionConfig::new().with_information_schema(true);
-    let ctx = SessionContext::with_config(config);
+    let ctx = SessionContext::new_with_config(config);
 
     let args: Args = Args::parse();
     //let globbing_path = args.get_globbing_path().await?;
