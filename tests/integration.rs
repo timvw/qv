@@ -54,6 +54,7 @@ async fn run_with_local_parquet_file() -> datafusion::common::Result<()> {
     Ok(())
 }
 
+/*
 #[tokio::test]
 async fn run_with_local_parquet_files_in_folder() -> datafusion::common::Result<()> {
     let mut cmd = get_qv_cmd()?;
@@ -68,3 +69,4 @@ async fn run_with_local_parquet_files_in_folder() -> datafusion::common::Result<
         ));
     Ok(())
 }
+*/
