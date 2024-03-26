@@ -1,4 +1,4 @@
-use crate::GlobbingPath;
+//use crate::GlobbingPath;
 use aws_sdk_glue::Client;
 use aws_types::SdkConfig;
 use chrono::{DateTime, Utc};
@@ -50,6 +50,7 @@ impl Args {
         query
     }
 
+    /*
     pub async fn get_globbing_path(&self) -> Result<GlobbingPath> {
         let (data_location, maybe_sdk_config) = match update_s3_console_url(&self.path) {
             (true, updated_location) => (updated_location, Some(get_sdk_config(self).await)),
@@ -79,9 +80,10 @@ impl Args {
 
         let globbing_path = GlobbingPath::parse(&data_location)?;
         Ok(globbing_path)
-    }
+    }*/
 }
 
+#[allow(dead_code)]
 async fn get_sdk_config(args: &Args) -> SdkConfig {
     set_aws_profile_when_needed(args);
     set_aws_region_when_needed();
@@ -89,12 +91,14 @@ async fn get_sdk_config(args: &Args) -> SdkConfig {
     aws_config::load_from_env().await
 }
 
+#[allow(dead_code)]
 fn set_aws_profile_when_needed(args: &Args) {
     if let Some(aws_profile) = &args.profile {
         env::set_var("AWS_PROFILE", aws_profile);
     }
 }
 
+#[allow(dead_code)]
 fn set_aws_region_when_needed() {
     match env::var("AWS_DEFAULT_REGION") {
         Ok(_) => {}
@@ -102,6 +106,7 @@ fn set_aws_region_when_needed() {
     }
 }
 
+#[allow(dead_code)]
 async fn get_storage_location(
     sdk_config: &SdkConfig,
     database_name: &str,
@@ -140,6 +145,7 @@ async fn get_storage_location(
     Ok(location.to_string())
 }
 
+#[allow(dead_code)]
 fn parse_glue_url(s: &str) -> Option<(String, String)> {
     let re: Regex = Regex::new(r"^glue://(\w+)\.(\w+)$").unwrap();
     re.captures(s).map(|captures| {
@@ -160,6 +166,7 @@ fn test_parse_glue_url() {
 
 /// When the provided s looks like an https url from the amazon webui convert it to an s3:// url
 /// When the provided s does not like such url, return it as is.
+#[allow(dead_code)]
 fn update_s3_console_url(s: &str) -> (bool, String) {
     if s.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
         let parsed_url = Url::parse(s).unwrap_or_else(|_| panic!("Failed to parse {}", s));

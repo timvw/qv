@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use datafusion::common::Result;
 use datafusion::datasource::listing::{
-    ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
+    ListingTable, ListingTableConfig, ListingTableUrl,
 };
 use datafusion::prelude::*;
 
@@ -15,7 +15,7 @@ mod globbing_table;
 mod object_store_util;
 
 use crate::args::Args;
-use crate::globbing_path::GlobbingPath;
+//use crate::globbing_path::GlobbingPath;
 //use crate::globbing_table::build_table_provider;
 //use crate::object_store_util::register_object_store;
 

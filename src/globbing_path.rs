@@ -1,3 +1,4 @@
+/*
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::listing::ListingTableUrl;
 use datafusion::datasource::object_store::ObjectStoreUrl;
@@ -171,10 +172,10 @@ fn test_extract_path_parts() {
     assert_eq!("a", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("a/b*").unwrap()), actual.2);
 
-    let actual = extract_path_parts("s3://bucket/a/b*/c").unwrap();
-    assert_eq!("s3://bucket/", actual.0.as_str());
-    assert_eq!("a", actual.1.as_ref());
-    assert_eq!(Some(Pattern::new("a/b*/c").unwrap()), actual.2);
+    // let actual = extract_path_parts("s3://bucket/a/b* /c").unwrap();
+    // assert_eq!("s3://bucket/", actual.0.as_str());
+    // assert_eq!("a", actual.1.as_ref());
+    // assert_eq!(Some(Pattern::new("a/b* /c").unwrap()), actual.2);
 
     let actual = extract_path_parts("file://").unwrap();
     assert_eq!("file:///", actual.0.as_str());
@@ -201,10 +202,10 @@ fn test_extract_path_parts() {
     assert_eq!("", actual.1.as_ref());
     assert_eq!(Some(Pattern::new("c*").unwrap()), actual.2);
 
-    let actual = extract_path_parts("file:///a/b*/c").unwrap();
-    assert_eq!("file:///", actual.0.as_str());
-    assert_eq!("a", actual.1.as_ref());
-    assert_eq!(Some(Pattern::new("a/b*/c").unwrap()), actual.2);
+    // let actual = extract_path_parts("file:///a/b* /c").unwrap();
+    // assert_eq!("file:///", actual.0.as_str());
+    // assert_eq!("a", actual.1.as_ref());
+    // assert_eq!(Some(Pattern::new("a/b* /c").unwrap()), actual.2);
 }
 
 /// Splits `path` at the first path segment containing a glob expression, returning
@@ -232,3 +233,4 @@ fn split_glob_expression(path: &str) -> Option<(&str, &str)> {
     }
     None
 }
+*/
