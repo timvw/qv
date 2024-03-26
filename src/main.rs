@@ -64,7 +64,7 @@ mod tests {
     }
 
     fn get_qv_cmd() -> Result<Command> {
-        Command::cargo_bin("qv").map_err(map_cargo_to_datafusion_error)
+        Command::cargo_bin(env!("CARGO_PKG_NAME")).map_err(map_cargo_to_datafusion_error)
     }
 
     #[tokio::test]
