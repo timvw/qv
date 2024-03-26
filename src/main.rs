@@ -4,9 +4,7 @@ use std::sync::Arc;
 //use datafusion::catalog::TableReference;
 
 use datafusion::common::Result;
-use datafusion::datasource::listing::{
-    ListingTable, ListingTableConfig, ListingTableUrl,
-};
+use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::prelude::*;
 
 mod args;
@@ -113,9 +111,7 @@ mod tests {
     #[tokio::test]
     async fn run_with_local_parquet_files_in_folder() -> Result<()> {
         let mut cmd = get_qv_cmd()?;
-        let cmd = cmd.arg(get_qv_testing_path(
-            "data/iceberg/db/COVID-19_NYT/data",
-        ));
+        let cmd = cmd.arg(get_qv_testing_path("data/iceberg/db/COVID-19_NYT/data"));
         cmd.assert()
             .success()
             .stdout(predicate::str::contains(
