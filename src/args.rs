@@ -21,7 +21,7 @@ pub struct Args {
 
     /// When provided the schema is shown
     #[clap(short, long, group = "sql")]
-    schema: bool,
+    pub schema: bool,
 
     /// Rows to return
     #[clap(short, long, default_value_t = 10)]

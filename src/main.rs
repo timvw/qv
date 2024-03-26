@@ -42,7 +42,11 @@ async fn main() -> Result<()> {
 
     let query = &args.get_query();
     let df = ctx.sql(query).await?;
-    df.show_limit(10).await?;
+    if args.schema {
+        df.show().await?;
+    } else {
+        df.show_limit(args.limit).await?;
+    }
 
     Ok(())
 }
