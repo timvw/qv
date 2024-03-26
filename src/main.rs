@@ -109,4 +109,21 @@ mod tests {
             ));
         Ok(())
     }
+
+    #[tokio::test]
+    async fn run_with_local_parquet_files_in_folder() -> Result<()> {
+        let mut cmd = get_qv_cmd()?;
+        let cmd = cmd.arg(get_qv_testing_path(
+            "data/iceberg/db/COVID-19_NYT/data",
+        ));
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains(
+                r#"| date       | county     | state    | fips  | cases | deaths |"#,
+            ))
+            .stdout(predicate::str::contains(
+                r#"| 2020-05-19 | Lawrence   | Illinois | 17101 | 4     | 0      |"#,
+            ));
+        Ok(())
+    }
 }
