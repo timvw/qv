@@ -1,4 +1,3 @@
-//use crate::GlobbingPath;
 use aws_sdk_glue::Client;
 use aws_types::SdkConfig;
 use chrono::{DateTime, Utc};
@@ -6,7 +5,6 @@ use clap::Parser;
 use datafusion::common::{DataFusionError, Result};
 use regex::Regex;
 use std::collections::HashMap;
-use std::env;
 use url::Url;
 
 #[derive(Parser, Debug)]
@@ -81,29 +79,6 @@ impl Args {
         let globbing_path = GlobbingPath::parse(&data_location)?;
         Ok(globbing_path)
     }*/
-}
-
-#[allow(dead_code)]
-async fn get_sdk_config(args: &Args) -> SdkConfig {
-    set_aws_profile_when_needed(args);
-    set_aws_region_when_needed();
-
-    aws_config::load_from_env().await
-}
-
-#[allow(dead_code)]
-fn set_aws_profile_when_needed(args: &Args) {
-    if let Some(aws_profile) = &args.profile {
-        env::set_var("AWS_PROFILE", aws_profile);
-    }
-}
-
-#[allow(dead_code)]
-fn set_aws_region_when_needed() {
-    match env::var("AWS_DEFAULT_REGION") {
-        Ok(_) => {}
-        Err(_) => env::set_var("AWS_DEFAULT_REGION", "eu-central-1"),
-    }
 }
 
 #[allow(dead_code)]
