@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
             .register_object_store(&s3_url, Arc::new(OpendalStore::new(op)));
     }
 
-    let table_path = ListingTableUrl::parse(&args.path)?;
+    let table_path = ListingTableUrl::parse(data_path)?;
     let mut config = ListingTableConfig::new(table_path);
     config = config.infer_options(&ctx.state()).await?;
     config = config.infer_schema(&ctx.state()).await?;

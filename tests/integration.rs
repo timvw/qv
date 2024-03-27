@@ -159,6 +159,36 @@ async fn run_with_s3_parquet_file() -> datafusion::common::Result<()> {
         .stdout(data_predicate);
     Ok(())
 }
+
+#[tokio::test]
+async fn run_with_s3_console_parquet_file() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("https://s3.console.aws.amazon.com/s3/buckets/data?region=eu-central-1&prefix=iceberg/db/COVID-19_NYT/data/00000-2-2d39563f-6901-4e2d-9903-84a8eab8ac3d-00001.parquet&showversions=false")
+        .arg("-q")
+        .arg("select * from tbl order by date, county, state, fips, cases, deaths");
+
+    let header_predicate =
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+
+    let data_predicate = build_row_regex_predicate(vec![
+        "2020-01-21",
+        "Snohomish",
+        "Washington",
+        "53061",
+        "1",
+        "0",
+    ]);
+
+    cmd.assert()
+        .success()
+        .stdout(header_predicate)
+        .stdout(data_predicate);
+    Ok(())
+}
+
 /*
 #[tokio::test]
 async fn run_with_s3_parquet_files_in_folder() -> datafusion::common::Result<()> {
