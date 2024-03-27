@@ -27,8 +27,8 @@ async fn run_with_local_avro_file() -> datafusion::common::Result<()> {
     let mut cmd = get_qv_cmd()?;
     let cmd = cmd.arg(get_qv_testing_path("data/avro/alltypes_plain.avro"));
     cmd.assert().success()
-        .stdout(predicate::str::contains("| id | bool_col | tinyint_col | smallint_col | int_col | bigint_col | float_col | double_col | date_string_col  | string_col | timestamp_col       |"))
-        .stdout(predicate::str::contains("| 4  | true     | 0           | 0            | 0       | 0          | 0.0       | 0.0        | 30332f30312f3039 | 30         | 2009-03-01T00:00:00 |"));
+        .stdout(predicate::str::contains("| id | bool_col | tinyint_col | smallint_col | int_col | bigint_col | float_col | double_col | date_string_col  | string_col | timestamp_col       |").trim())
+        .stdout(predicate::str::contains("| 4  | true     | 0           | 0            | 0       | 0          | 0.0       | 0.0        | 30332f30312f3039 | 30         | 2009-03-01T00:00:00 |").trim());
     Ok(())
 }
 
@@ -45,12 +45,18 @@ async fn run_with_local_parquet_file() -> datafusion::common::Result<()> {
     ));
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(
-            r#"| reply                                        | blog_id              |"#,
-        ))
-        .stdout(predicate::str::contains(
-            r#"| {reply_id: 332770973, next_id: }             | -1473106667809783919 |"#,
-        ));
+        .stdout(
+            predicate::str::contains(
+                r#"| reply                                        | blog_id              |"#,
+            )
+            .trim(),
+        )
+        .stdout(
+            predicate::str::contains(
+                r#"| {reply_id: 332770973, next_id: }             | -1473106667809783919 |"#,
+            )
+            .trim(),
+        );
     Ok(())
 }
 
@@ -69,9 +75,12 @@ async fn run_with_local_parquet_files_in_folder() -> datafusion::common::Result<
             )
             .trim(),
         )
-        .stdout(predicate::str::contains(
-            r#"| 2021-03-11 | Bibb     | Alabama | 1007 | 2474  | 58     |"#,
-        ));
+        .stdout(
+            predicate::str::contains(
+                r#"| 2021-03-11 | Bibb     | Alabama | 1007 | 2474  | 58     |"#,
+            )
+            .trim(),
+        );
     Ok(())
 }
 
@@ -102,8 +111,11 @@ async fn run_with_s3_parquet_file() -> datafusion::common::Result<()> {
             )
             .trim(),
         )
-        .stdout(predicate::str::contains(
-            r#"| 2020-01-21 | Snohomish | Washington | 53061 | 1     | 0      |"#,
-        ));
+        .stdout(
+            predicate::str::contains(
+                r#"| 2020-01-21 | Snohomish | Washington | 53061 | 1     | 0      |"#,
+            )
+            .trim(),
+        );
     Ok(())
 }
