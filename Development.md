@@ -11,3 +11,9 @@ Uses the familiar cargo targets: build, test, fmt, clippy
 cargo test
 ./ci/minio_stop.sh
 ```
+
+## Releasing
+
+Leverages [Release-plz](https://github.com/MarcoIeni/release-plz) to build Release PR's.
+
+
