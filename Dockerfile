@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM rust:1.73 as builder
+FROM rust:1.77 as builder
 
 WORKDIR /usr/src/qv
 COPY ./Cargo.toml ./Cargo.toml
