@@ -33,6 +33,7 @@ object_store = { version = "0.9", features = ["aws", "gcp"] }
 regex = "1.10"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
 url = "2.5"
+datafusion_iceberg = "0.3"
 
 [dev-dependencies]
 assert_cmd = "2.0"
