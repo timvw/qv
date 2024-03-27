@@ -1,9 +1,5 @@
-use aws_sdk_glue::Client;
-use aws_types::SdkConfig;
 use chrono::{DateTime, Utc};
 use clap::Parser;
-use datafusion::common::{DataFusionError, Result};
-use regex::Regex;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -77,62 +73,4 @@ impl Args {
         let globbing_path = GlobbingPath::parse(&data_location)?;
         Ok(globbing_path)
     }*/
-}
-
-#[allow(dead_code)]
-async fn get_storage_location(
-    sdk_config: &SdkConfig,
-    database_name: &str,
-    table_name: &str,
-) -> Result<String> {
-    let client: Client = Client::new(sdk_config);
-    let table = client
-        .get_table()
-        .set_database_name(Some(database_name.to_string()))
-        .set_name(Some(table_name.to_string()))
-        .send()
-        .await
-        .map_err(|e| DataFusionError::External(Box::new(e)))?
-        .table
-        .ok_or_else(|| {
-            DataFusionError::Execution(format!(
-                "Could not find {}.{} in glue",
-                database_name, table_name
-            ))
-        })?;
-    let location = table
-        .storage_descriptor()
-        .ok_or_else(|| {
-            DataFusionError::Execution(format!(
-                "Could not find storage descriptor for {}.{} in glue",
-                database_name, table_name
-            ))
-        })?
-        .location()
-        .ok_or_else(|| {
-            DataFusionError::Execution(format!(
-                "Could not find sd.location for {}.{} in glue",
-                database_name, table_name
-            ))
-        })?;
-    Ok(location.to_string())
-}
-
-#[allow(dead_code)]
-fn parse_glue_url(s: &str) -> Option<(String, String)> {
-    let re: Regex = Regex::new(r"^glue://(\w+)\.(\w+)$").unwrap();
-    re.captures(s).map(|captures| {
-        let database_name = &captures[1];
-        let table_name = &captures[2];
-        (database_name.to_string(), table_name.to_string())
-    })
-}
-
-#[test]
-fn test_parse_glue_url() {
-    assert_eq!(None, parse_glue_url("file:///a"));
-    assert_eq!(
-        Some(("db".to_string(), "table".to_string())),
-        parse_glue_url("glue://db.table")
-    );
 }

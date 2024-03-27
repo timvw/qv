@@ -1,5 +1,11 @@
+mod args;
+mod globbing_path;
+mod globbing_table;
+mod object_store_util;
+
 use aws_config::BehaviorVersion;
 use aws_credential_types::provider::ProvideCredentials;
+use aws_sdk_glue::Client;
 use clap::Parser;
 use datafusion::catalog::TableReference;
 use std::collections::HashMap;
@@ -14,15 +20,10 @@ use datafusion::prelude::*;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::path::Path;
 use object_store::ObjectStore;
-
-mod args;
-mod globbing_path;
-mod globbing_table;
-mod object_store_util;
+use regex::Regex;
+use url::Url;
 
 use crate::args::Args;
-
-use url::Url;
 
 async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
     let cp = sdk_config.credentials_provider().unwrap();
@@ -63,7 +64,7 @@ async fn main() -> Result<()> {
 
     let args: Args = Args::parse();
 
-    let (_, data_path) = build_path_when_s3_console_url(&args.path.clone());
+    let (_, data_path) = replace_s3_console_url_with_s3_path(&args.path.clone());
 
     let sdk_config = get_sdk_config(&args).await;
 
@@ -136,8 +137,7 @@ fn set_aws_region_when_needed() {
 
 /// When the provided s looks like an https url from the amazon webui convert it to an s3:// url
 /// When the provided s does not like such url, return it as is.
-#[allow(dead_code)]
-fn build_path_when_s3_console_url(s: &str) -> (bool, String) {
+fn replace_s3_console_url_with_s3_path(s: &str) -> (bool, String) {
     if s.starts_with("https://s3.console.aws.amazon.com/s3/buckets/") {
         let parsed_url = Url::parse(s).unwrap_or_else(|_| panic!("Failed to parse {}", s));
         let path_segments = parsed_url
@@ -168,12 +168,68 @@ fn build_path_when_s3_console_url(s: &str) -> (bool, String) {
 }
 
 #[test]
-fn test_update_s3_console_url() -> Result<()> {
+fn test_replace_s3_console_url_with_s3_path() -> Result<()> {
     assert_eq!(
-        build_path_when_s3_console_url("/Users/timvw/test"),
+        replace_s3_console_url_with_s3_path("/Users/timvw/test"),
         (false, "/Users/timvw/test".to_string())
     );
-    assert_eq!(build_path_when_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false"), (true, "s3://datafusion-delta-testing/COVID-19_NYT/".to_string()));
-    assert_eq!(build_path_when_s3_console_url("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1"), (true, "s3://datafusion-delta-testing/COVID-19_NYT/".to_string()));
+    assert_eq!(replace_s3_console_url_with_s3_path("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?region=eu-central-1&prefix=COVID-19_NYT/&showversions=false"), (true, "s3://datafusion-delta-testing/COVID-19_NYT/".to_string()));
+    assert_eq!(replace_s3_console_url_with_s3_path("https://s3.console.aws.amazon.com/s3/buckets/datafusion-delta-testing?prefix=COVID-19_NYT/&region=eu-central-1"), (true, "s3://datafusion-delta-testing/COVID-19_NYT/".to_string()));
     Ok(())
+}
+
+fn parse_glue_url(s: &str) -> Option<(String, String)> {
+    let re: Regex = Regex::new(r"^glue://(\w+)\.(\w+)$").unwrap();
+    re.captures(s).map(|captures| {
+        let database_name = &captures[1];
+        let table_name = &captures[2];
+        (database_name.to_string(), table_name.to_string())
+    })
+}
+
+#[test]
+fn test_parse_glue_url() {
+    assert_eq!(None, parse_glue_url("file:///a"));
+    assert_eq!(
+        Some(("db".to_string(), "table".to_string())),
+        parse_glue_url("glue://db.table")
+    );
+}
+
+async fn get_storage_location(
+    sdk_config: &SdkConfig,
+    database_name: &str,
+    table_name: &str,
+) -> Result<String> {
+    let client: Client = Client::new(sdk_config);
+    let table = client
+        .get_table()
+        .set_database_name(Some(database_name.to_string()))
+        .set_name(Some(table_name.to_string()))
+        .send()
+        .await
+        .map_err(|e| DataFusionError::External(Box::new(e)))?
+        .table
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not find {}.{} in glue",
+                database_name, table_name
+            ))
+        })?;
+    let location = table
+        .storage_descriptor()
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not find storage descriptor for {}.{} in glue",
+                database_name, table_name
+            ))
+        })?
+        .location()
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not find sd.location for {}.{} in glue",
+                database_name, table_name
+            ))
+        })?;
+    Ok(location.to_string())
 }
