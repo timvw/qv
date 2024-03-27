@@ -1,5 +1,10 @@
 # Quickly view your data (qv)
 
+[<img alt="github" src="https://img.shields.io/badge/github-timvw/qv-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/timvw/qv)
+[<img alt="crates.io" src="https://img.shields.io/crates/v/qv.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/qv)
+[<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-qv-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/qv)
+[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/timvw/qv/test_suite.yml?branch=main&style=for-the-badge" height="20">](https://github.com/timvw/qv/actions?query=branch%3Amain)
+
 A simply CLI to quickly view your data. Powered by [DataFusion](https://github.com/apache/arrow-datafusion).
 
 ## Example: View data on local filesystem
