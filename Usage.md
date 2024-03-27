@@ -20,6 +20,24 @@ qv gs://datafusion-delta-testing/data/delta/COVID-19_NYT
 
 ## View data on S3
 
+### Configuration
+
+Often, things just work out of the box ([Credential loading](https://github.com/Xuanwo/reqsign/blob/06791cbc5fbcea333ef59f7795b0b0f9efe0dcd1/src/aws/credential.rs#L102)).  
+
+The following environment variables are needed for credentials:
+
+* AWS_REGION
+* AWS_ACCESS_KEY_ID
+* AWS_SECRET_ACCESS_KEY
+
+We have also support AWS SSO credentials, in that case you need:
+* AWS_PROFILE
+
+In case you have a custom endpoint in place (eg: [minio](https://min.io/)) you also need to set:
+* AWS_ENDPOINT_URL
+
+
+
 ```bash
 qv s3://tpc-h-parquet/1/customer
 ```
