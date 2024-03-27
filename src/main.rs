@@ -1,6 +1,6 @@
-use std::env;
 use clap::Parser;
 use datafusion::catalog::TableReference;
+use std::env;
 use std::sync::Arc;
 
 use datafusion::common::{DataFusionError, Result};
@@ -15,8 +15,8 @@ mod object_store_util;
 use crate::args::Args;
 
 use object_store_opendal::OpendalStore;
-use opendal::Operator;
 use opendal::services::S3;
+use opendal::Operator;
 use url::Url;
 
 fn init_s3_operator_via_builder(url: &Url) -> Result<Operator> {
@@ -31,13 +31,12 @@ fn init_s3_operator_via_builder(url: &Url) -> Result<Operator> {
 
     //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 
-    let maybe_aws_endpoint_url = env::var("AWS_ENDPOINT_URL");
-    if maybe_aws_endpoint_url.is_ok() {
-        builder.endpoint(&maybe_aws_endpoint_url.unwrap());
+    if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
+        builder.endpoint(&aws_endpoint_url);
     }
 
     let op = Operator::new(builder)
-        .map_err(|e|DataFusionError::Execution(format!("Failed to build operator: {e}")))?
+        .map_err(|e| DataFusionError::Execution(format!("Failed to build operator: {e}")))?
         .finish();
     Ok(op)
 }
@@ -52,10 +51,11 @@ async fn main() -> Result<()> {
     let data_path = &args.path.clone();
 
     if data_path.starts_with("s3://") {
-        let s3_url = Url::parse(&data_path)
+        let s3_url = Url::parse(data_path)
             .map_err(|e| DataFusionError::Execution(format!("Failed to parse url, {e}")))?;
         let op = init_s3_operator_via_builder(&s3_url)?;
-        ctx.runtime_env().register_object_store(&s3_url, Arc::new(OpendalStore::new(op)));
+        ctx.runtime_env()
+            .register_object_store(&s3_url, Arc::new(OpendalStore::new(op)));
     }
 
     let table_path = ListingTableUrl::parse(&args.path)?;

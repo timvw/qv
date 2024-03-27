@@ -63,11 +63,46 @@ async fn run_with_local_parquet_files_in_folder() -> datafusion::common::Result<
         .arg("select * from tbl order by date desc");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(
-            r#"| date       | county   | state   | fips | cases | deaths |"#,
-        ).trim())
+        .stdout(
+            predicate::str::contains(
+                r#"| date       | county   | state   | fips | cases | deaths |"#,
+            )
+            .trim(),
+        )
         .stdout(predicate::str::contains(
             r#"| 2021-03-11 | Bibb     | Alabama | 1007 | 2474  | 58     |"#,
+        ));
+    Ok(())
+}
+
+fn configure_minio() {
+    env::set_var("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE");
+    env::set_var(
+        "AWS_SECRET_ACCESS_KEY",
+        "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    );
+    env::set_var("AWS_ENDPOINT_URL", "http://localhost:9000");
+}
+
+#[tokio::test]
+async fn run_with_s3_parquet_file() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("s3://data/iceberg/db/COVID-19_NYT/data/00000-2-2d39563f-6901-4e2d-9903-84a8eab8ac3d-00001.parquet")
+        .arg("-q")
+        .arg("select * from tbl order by date, county, state, fips, cases, deaths");
+    cmd.assert()
+        .success()
+        .stdout(
+            predicate::str::contains(
+                r#"| date       | county   | state   | fips | cases | deaths |"#,
+            )
+            .trim(),
+        )
+        .stdout(predicate::str::contains(
+            r#"| 2020-01-21 | Snohomish | Washington | 53061 | 1     | 0      |"#,
         ));
     Ok(())
 }
