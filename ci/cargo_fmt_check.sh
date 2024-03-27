@@ -1,1 +1,0 @@
-cargo fmt --all -- --check
