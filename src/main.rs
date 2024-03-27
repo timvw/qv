@@ -1,9 +1,9 @@
+use aws_config::BehaviorVersion;
+use aws_credential_types::provider::ProvideCredentials;
 use clap::Parser;
 use datafusion::catalog::TableReference;
 use std::env;
 use std::sync::Arc;
-use aws_config::BehaviorVersion;
-use aws_credential_types::provider::ProvideCredentials;
 
 use aws_types::SdkConfig;
 
@@ -24,9 +24,10 @@ use opendal::Operator;
 use url::Url;
 
 async fn init_s3_operator_via_builder(url: &Url, sdk_config: &SdkConfig) -> Result<Operator> {
-
     let cp = sdk_config.credentials_provider().unwrap();
-    let creds = cp.provide_credentials().await
+    let creds = cp
+        .provide_credentials()
+        .await
         .map_err(|e| DataFusionError::Execution(format!("Failed to get credentials: {e}")))?;
 
     let mut builder = S3::default();
@@ -61,7 +62,6 @@ async fn main() -> Result<()> {
     let data_path = &args.path.clone();
 
     let sdk_config = get_sdk_config(&args).await;
-
 
     if data_path.starts_with("s3://") {
         let s3_url = Url::parse(data_path)
