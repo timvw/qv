@@ -22,7 +22,7 @@ qv gs://datafusion-delta-testing/data/delta/COVID-19_NYT
 
 ### Configuration
 
-Often, things just work out of the box ([Credential loading](https://github.com/Xuanwo/reqsign/blob/06791cbc5fbcea333ef59f7795b0b0f9efe0dcd1/src/aws/credential.rs#L102)).  
+Usually [Credential](https://github.com/awslabs/aws-sdk-rust/blob/main/sdk/aws-config/src/default_provider/credentials.rs#L25) loading works out of the box when using the [AWS SDK for Rust](https://github.com/awslabs/aws-sdk-rust/tree/main).  
 
 The following environment variables are needed for credentials:
 
@@ -30,7 +30,7 @@ The following environment variables are needed for credentials:
 * AWS_ACCESS_KEY_ID
 * AWS_SECRET_ACCESS_KEY
 
-We have also support AWS SSO credentials, in that case you need:
+In case you have AWS SSO credentials you need to set the following:
 * AWS_PROFILE
 
 In case you have a custom endpoint in place (eg: [minio](https://min.io/)) you also need to set:
@@ -46,6 +46,12 @@ qv s3://tpc-h-parquet/1/customer
 
 ```bash
 qv s3://tpc-h-parquet/1/customer --profile my-user
+```
+
+This is the same as:
+
+```bash
+AWS_PROFILE=my-user qv s3://tpc-h-parquet/1/customer
 ```
 
 ## View data from S3 console URL
