@@ -11,6 +11,7 @@ use aws_types::SdkConfig;
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::prelude::*;
+use object_store::aws::{AmazonS3, AmazonS3Builder};
 
 mod args;
 mod globbing_path;
@@ -19,38 +20,40 @@ mod object_store_util;
 
 use crate::args::Args;
 
-use object_store_opendal::OpendalStore;
-use opendal::services::S3;
-use opendal::Operator;
 use url::Url;
 
-async fn init_s3_operator_via_builder(url: &Url, sdk_config: &SdkConfig) -> Result<Operator> {
+async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
     let cp = sdk_config.credentials_provider().unwrap();
     let creds = cp
         .provide_credentials()
         .await
         .map_err(|e| DataFusionError::Execution(format!("Failed to get credentials: {e}")))?;
 
-    let mut builder = S3::default();
     let bucket_name = url.host_str().unwrap();
-    builder.bucket(bucket_name);
 
-    builder.access_key_id(creds.access_key_id());
-    builder.secret_access_key(creds.secret_access_key());
+    let builder = AmazonS3Builder::from_env()
+        .with_bucket_name(bucket_name)
+        .with_access_key_id(creds.access_key_id())
+        .with_secret_access_key(creds.secret_access_key());
 
-    if let Some(session_token) = creds.session_token() {
-        builder.security_token(session_token);
-    }
+    let builder2 = if let Some(session_token) = creds.session_token() {
+        builder.with_token(session_token)
+    } else {
+        builder
+    };
 
     //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
-    if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
-        builder.endpoint(&aws_endpoint_url);
-    }
+    let builder3 = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
+        print!("setting endpoint to {aws_endpoint_url}");
+        builder2.with_endpoint(&aws_endpoint_url)
+    } else {
+        print!("not setting endpoint...");
+        builder2
+    };
 
-    let op = Operator::new(builder)
-        .map_err(|e| DataFusionError::Execution(format!("Failed to build operator: {e}")))?
-        .finish();
-    Ok(op)
+    let s3 = builder3.build()?;
+
+    Ok(s3)
 }
 
 #[tokio::main]
@@ -67,9 +70,9 @@ async fn main() -> Result<()> {
     if data_path.starts_with("s3://") {
         let s3_url = Url::parse(&data_path)
             .map_err(|e| DataFusionError::Execution(format!("Failed to parse url, {e}")))?;
-        let op = init_s3_operator_via_builder(&s3_url, &sdk_config).await?;
+        let s3 = build_s3(&s3_url, &sdk_config).await?;
         ctx.runtime_env()
-            .register_object_store(&s3_url, Arc::new(OpendalStore::new(op)));
+            .register_object_store(&s3_url, Arc::new(s3));
     }
 
     let table_path = ListingTableUrl::parse(data_path)?;
