@@ -9,6 +9,12 @@ readme = "README.md"
 authors = ["Tim Van Wassenhove <tim@timvw.be>"]
 license = "Apache-2.0"
 keywords = [ "quickview", "data", "query", "sql", "datafusion" ]
+exclude = [
+    ".github/*",
+    "ci/*",
+    "dev/*",
+    "testing/*",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
