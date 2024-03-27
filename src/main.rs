@@ -24,11 +24,6 @@ fn init_s3_operator_via_builder(url: &Url) -> Result<Operator> {
     let bucket_name = url.host_str().unwrap();
     builder.bucket(bucket_name);
 
-    // export AWS_REGION=eu-central-1
-    // export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-    // export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    // export AWS_ENDPOINT_URL=http://localhost:9000
-
     //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 
     if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {

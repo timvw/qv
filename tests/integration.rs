@@ -76,6 +76,7 @@ async fn run_with_local_parquet_files_in_folder() -> datafusion::common::Result<
 }
 
 fn configure_minio() {
+    env::set_var("AWS_REGION", "eu-central-1");
     env::set_var("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE");
     env::set_var(
         "AWS_SECRET_ACCESS_KEY",
