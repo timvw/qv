@@ -1,1 +1,0 @@
-sccache --stop-server || true
