@@ -16,7 +16,11 @@ jobs:
         with:
           submodules: recursive
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Start minio
+        run: ./ci/minio_start.sh
       - run: cargo test --all-features
+      - name: Stop minio
+        run: ./ci/minio_stop.sh
 
   # Check formatting with rustfmt
   formatting:
