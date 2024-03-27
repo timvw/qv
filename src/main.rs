@@ -15,7 +15,7 @@ mod object_store_util;
 use crate::args::Args;
 
 use object_store_opendal::OpendalStore;
-use opendal::services::{Gcs, S3};
+use opendal::services::S3;
 use opendal::Operator;
 use url::Url;
 
@@ -29,15 +29,6 @@ fn init_s3_operator_via_builder(url: &Url) -> Result<Operator> {
     if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
         builder.endpoint(&aws_endpoint_url);
     }
-
-    let op = Operator::new(builder)
-        .map_err(|e| DataFusionError::Execution(format!("Failed to build operator: {e}")))?
-        .finish();
-    Ok(op)
-}
-
-fn init_gcs_operator_via_builder(url: &Url) -> Result<Operator> {
-    let mut builder = Gcs::default();
 
     let op = Operator::new(builder)
         .map_err(|e| DataFusionError::Execution(format!("Failed to build operator: {e}")))?
