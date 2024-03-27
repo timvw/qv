@@ -46,10 +46,8 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
 
     //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
     let builder = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
-        print!("setting endpoint to {aws_endpoint_url}");
         builder.with_endpoint(&aws_endpoint_url)
     } else {
-        print!("not setting endpoint...");
         builder
     };
 
