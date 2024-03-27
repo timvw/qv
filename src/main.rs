@@ -12,6 +12,8 @@ use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
 use datafusion::prelude::*;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
+use object_store::path::Path;
+use object_store::ObjectStore;
 
 mod args;
 mod globbing_path;
@@ -36,22 +38,22 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
         .with_access_key_id(creds.access_key_id())
         .with_secret_access_key(creds.secret_access_key());
 
-    let builder2 = if let Some(session_token) = creds.session_token() {
+    let builder = if let Some(session_token) = creds.session_token() {
         builder.with_token(session_token)
     } else {
         builder
     };
 
     //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
-    let builder3 = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
+    let builder = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
         print!("setting endpoint to {aws_endpoint_url}");
-        builder2.with_endpoint(&aws_endpoint_url)
+        builder.with_endpoint(&aws_endpoint_url)
     } else {
         print!("not setting endpoint...");
-        builder2
+        builder
     };
 
-    let s3 = builder3.build()?;
+    let s3 = builder.build()?;
 
     Ok(s3)
 }
@@ -67,13 +69,29 @@ async fn main() -> Result<()> {
 
     let sdk_config = get_sdk_config(&args).await;
 
-    if data_path.starts_with("s3://") {
+    let data_path = if data_path.starts_with("s3://") {
+        // register s3 object store
         let s3_url = Url::parse(&data_path)
             .map_err(|e| DataFusionError::Execution(format!("Failed to parse url, {e}")))?;
         let s3 = build_s3(&s3_url, &sdk_config).await?;
+        let s3_arc = Arc::new(s3);
         ctx.runtime_env()
-            .register_object_store(&s3_url, Arc::new(s3));
-    }
+            .register_object_store(&s3_url, s3_arc.clone());
+
+        // add trailing slash to folder
+        if !data_path.ends_with('/') {
+            let path = Path::parse(s3_url.path())?;
+            if s3_arc.head(&path).await.is_err() {
+                format!("{data_path}/")
+            } else {
+                data_path
+            }
+        } else {
+            data_path
+        }
+    } else {
+        data_path
+    };
 
     let table_path = ListingTableUrl::parse(data_path)?;
     let mut config = ListingTableConfig::new(table_path);
