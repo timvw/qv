@@ -5,6 +5,7 @@ mod object_store_util;
 
 use aws_config::BehaviorVersion;
 use aws_credential_types::provider::ProvideCredentials;
+use aws_sdk_glue::types::StorageDescriptor;
 use aws_sdk_glue::Client;
 use clap::Parser;
 use datafusion::catalog::TableReference;
@@ -15,7 +16,14 @@ use std::sync::Arc;
 use aws_types::SdkConfig;
 
 use datafusion::common::{DataFusionError, Result};
-use datafusion::datasource::listing::{ListingTable, ListingTableConfig, ListingTableUrl};
+use datafusion::datasource::file_format::avro::AvroFormat;
+use datafusion::datasource::file_format::csv::CsvFormat;
+use datafusion::datasource::file_format::json::JsonFormat;
+use datafusion::datasource::file_format::parquet::ParquetFormat;
+use datafusion::datasource::file_format::FileFormat;
+use datafusion::datasource::listing::{
+    ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
+};
 use datafusion::prelude::*;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::path::Path;
@@ -47,7 +55,7 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
 
     //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
     let builder = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
-        builder.with_endpoint(&aws_endpoint_url)
+        builder.with_endpoint(aws_endpoint_url)
     } else {
         builder
     };
@@ -67,6 +75,8 @@ async fn main() -> Result<()> {
     let (_, data_path) = replace_s3_console_url_with_s3_path(&args.path.clone());
 
     let sdk_config = get_sdk_config(&args).await;
+
+    let (data_path, file_format) = replace_glue_table_with_path(&data_path, &sdk_config).await?;
 
     let data_path = if data_path.starts_with("s3://") {
         // register s3 object store
@@ -94,7 +104,13 @@ async fn main() -> Result<()> {
 
     let table_path = ListingTableUrl::parse(data_path)?;
     let mut config = ListingTableConfig::new(table_path);
-    config = config.infer_options(&ctx.state()).await?;
+
+    config = if let Some(format) = file_format {
+        config.with_listing_options(ListingOptions::new(format))
+    } else {
+        config.infer_options(&ctx.state()).await?
+    };
+
     config = config.infer_schema(&ctx.state()).await?;
 
     let table = ListingTable::try_new(config)?;
@@ -178,6 +194,18 @@ fn test_replace_s3_console_url_with_s3_path() -> Result<()> {
     Ok(())
 }
 
+async fn replace_glue_table_with_path(
+    path: &str,
+    sdk_config: &SdkConfig,
+) -> Result<(String, Option<Arc<dyn FileFormat>>)> {
+    if let Some((database, table)) = parse_glue_url(path) {
+        let (location, format) = get_path_and_format(sdk_config, &database, &table).await?;
+        Ok((location, Some(format)))
+    } else {
+        Ok((String::from(path), None))
+    }
+}
+
 fn parse_glue_url(s: &str) -> Option<(String, String)> {
     let re: Regex = Regex::new(r"^glue://(\w+)\.(\w+)$").unwrap();
     re.captures(s).map(|captures| {
@@ -196,11 +224,11 @@ fn test_parse_glue_url() {
     );
 }
 
-async fn get_storage_location(
+async fn get_path_and_format(
     sdk_config: &SdkConfig,
     database_name: &str,
     table_name: &str,
-) -> Result<String> {
+) -> Result<(String, Arc<dyn FileFormat>)> {
     let client: Client = Client::new(sdk_config);
     let table = client
         .get_table()
@@ -216,20 +244,108 @@ async fn get_storage_location(
                 database_name, table_name
             ))
         })?;
-    let location = table
-        .storage_descriptor()
-        .ok_or_else(|| {
-            DataFusionError::Execution(format!(
-                "Could not find storage descriptor for {}.{} in glue",
-                database_name, table_name
-            ))
-        })?
-        .location()
-        .ok_or_else(|| {
-            DataFusionError::Execution(format!(
-                "Could not find sd.location for {}.{} in glue",
-                database_name, table_name
-            ))
-        })?;
+    let sd = table.storage_descriptor().ok_or_else(|| {
+        DataFusionError::Execution(format!(
+            "Could not find storage descriptor for {}.{} in glue",
+            database_name, table_name
+        ))
+    })?;
+
+    let location = lookup_storage_location(sd)?;
+    let format_arc = lookup_file_format(sd)?;
+    Ok((location, format_arc))
+}
+
+fn lookup_storage_location(sd: &StorageDescriptor) -> Result<String> {
+    let location = sd.location().ok_or_else(|| {
+        DataFusionError::Execution(format!("Could not find sd.location for {sd:#?}",))
+    })?;
     Ok(location.to_string())
+}
+
+fn lookup_file_format(sd: &StorageDescriptor) -> Result<Arc<dyn FileFormat>> {
+    let empty_str = String::from("");
+    let input_format = sd.input_format.as_ref().unwrap_or(&empty_str);
+    let output_format = sd.output_format.as_ref().unwrap_or(&empty_str);
+    let serde_info = sd.serde_info.as_ref().ok_or_else(|| {
+        DataFusionError::Execution(
+            "Failed to find serde_info in storage descriptor for glue table".to_string(),
+        )
+    })?;
+    let serialization_library = serde_info
+        .serialization_library
+        .as_ref()
+        .unwrap_or(&empty_str);
+    let serde_info_parameters = serde_info
+        .parameters
+        .as_ref()
+        .ok_or_else(|| {
+            DataFusionError::Execution(
+                "Failed to find parameters of serde_info in storage descriptor for glue table"
+                    .to_string(),
+            )
+        })?
+        .clone();
+    let sd_parameters = match &sd.parameters {
+        Some(x) => x.clone(),
+        None => HashMap::new(),
+    };
+
+    let item: (&str, &str, &str) = (input_format, output_format, serialization_library);
+    let format_result: Result<Arc<dyn FileFormat>> = match item {
+        (
+            "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+            "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+        ) => Ok(Arc::new(ParquetFormat::default())),
+        (
+            "org.apache.hadoop.mapred.TextInputFormat",
+            "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+        ) => {
+            let mut format = CsvFormat::default();
+            let delim = serde_info_parameters
+                .get("field.delim")
+                .ok_or_else(|| {
+                    DataFusionError::Execution(
+                        "Failed to find field.delim in serde_info parameters".to_string(),
+                    )
+                })?
+                .as_bytes();
+            let delim_char = delim[0];
+            format = format.with_delimiter(delim_char);
+            let has_header = sd_parameters
+                .get("skip.header.line.count")
+                .unwrap_or(&empty_str)
+                .eq("1");
+            format = format.with_has_header(has_header);
+            Ok(Arc::new(format))
+        }
+        (
+            "org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat",
+            "org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat",
+            "org.apache.hadoop.hive.serde2.avro.AvroSerDe",
+        ) => Ok(Arc::new(AvroFormat)),
+        (
+            "org.apache.hadoop.mapred.TextInputFormat",
+            "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "org.apache.hive.hcatalog.data.JsonSerDe",
+        ) => Ok(Arc::new(JsonFormat::default())),
+        (
+            "org.apache.hadoop.mapred.TextInputFormat",
+            "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "org.openx.data.jsonserde.JsonSerDe",
+        ) => Ok(Arc::new(JsonFormat::default())),
+        (
+            "org.apache.hadoop.mapred.TextInputFormat",
+            "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "com.amazon.ionhiveserde.IonHiveSerDe",
+        ) => Ok(Arc::new(JsonFormat::default())),
+        _ => Err(DataFusionError::Execution(format!(
+            "No support for: {}, {}, {:?} yet.",
+            input_format, output_format, sd
+        ))),
+    };
+    let format = format_result?;
+    Ok(format)
 }
