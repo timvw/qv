@@ -107,13 +107,13 @@ async fn run_with_s3_parquet_file() -> datafusion::common::Result<()> {
         .success()
         .stdout(
             predicate::str::contains(
-                r#"| date       | county   | state   | fips | cases | deaths |"#,
+                r#"| date       | county      | state      | fips  | cases | deaths |"#,
             )
             .trim(),
         )
         .stdout(
             predicate::str::contains(
-                r#"| 2020-01-21 | Snohomish | Washington | 53061 | 1     | 0      |"#,
+                r#"| 2020-01-21 | Snohomish   | Washington | 53061 | 1     | 0      |"#,
             )
             .trim(),
         );
