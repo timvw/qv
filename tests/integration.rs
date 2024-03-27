@@ -14,6 +14,8 @@ fn configure_minio() {
         "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
     );
     env::set_var("AWS_ENDPOINT_URL", "http://localhost:9000");
+    env::set_var("AWS_ENDPOINT", "http://localhost:9000");
+    env::set_var("AWS_ALLOW_HTTP", "true");
 }
 
 fn map_cargo_to_datafusion_error(e: CargoError) -> DataFusionError {
@@ -189,14 +191,13 @@ async fn run_with_s3_console_parquet_file() -> datafusion::common::Result<()> {
     Ok(())
 }
 
-/*
 #[tokio::test]
 async fn run_with_s3_parquet_files_in_folder() -> datafusion::common::Result<()> {
     configure_minio();
 
     let mut cmd = get_qv_cmd()?;
     let cmd = cmd
-        .arg(&get_qv_testing_path("s3://data/iceberg/db/COVID-19_NYT/data"))
+        .arg("s3://data/iceberg/db/COVID-19_NYT/data/")
         .arg("-q")
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
@@ -217,4 +218,4 @@ async fn run_with_s3_parquet_files_in_folder() -> datafusion::common::Result<()>
         .stdout(header_predicate)
         .stdout(data_predicate);
     Ok(())
-}*/
+}

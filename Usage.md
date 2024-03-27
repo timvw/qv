@@ -34,7 +34,10 @@ In case you have AWS SSO credentials you need to set the following:
 * AWS_PROFILE
 
 In case you have a custom endpoint in place (eg: [minio](https://min.io/)) you also need to set:
-* AWS_ENDPOINT_URL
+#* AWS_ENDPOINT_URL
+AWS_ENDPOINT
+AWS_ALLOW_HTTP
+https://docs.rs/object_store/latest/object_store/aws/struct.AmazonS3Builder.html
 
 
 
