@@ -33,6 +33,14 @@ use url::Url;
 
 use crate::args::Args;
 
+use datafusion_iceberg::DataFusionTable;
+use iceberg_rust::catalog::Catalog;
+use iceberg_rust::catalog::identifier::Identifier;
+use iceberg_rust::catalog::tabular::Tabular;
+use iceberg_rust::spec::table_metadata::{TableMetadata, TableMetadataBuilder};
+use iceberg_rust::table::table_builder::TableBuilder;
+use iceberg_sql_catalog::SqlCatalog;
+
 async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
     let cp = sdk_config.credentials_provider().unwrap();
     let creds = cp
@@ -65,8 +73,76 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
     Ok(s3)
 }
 
+fn configure_minio() {
+    env::set_var("AWS_REGION", "eu-central-1");
+    env::set_var("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE");
+    env::set_var(
+        "AWS_SECRET_ACCESS_KEY",
+        "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    );
+    env::set_var("AWS_ENDPOINT_URL", "http://localhost:9000");
+    env::set_var("AWS_ENDPOINT", "http://localhost:9000");
+    env::set_var("AWS_ALLOW_HTTP", "true");
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+
+    //let tl: TableMetadata  = serde_json::
+    //./testing/data/iceberg/db/COVID-19_NYT/metadata/v3.metadata.json
+
+
+    configure_minio();
+
+
+    let config = SessionConfig::new().with_information_schema(true);
+    let ctx = SessionContext::new_with_config(config);
+    //let data_path = "s3://data/iceberg/db/COVID-19_NYT";
+    let meta_path = "s3://data/iceberg/db/COVID-19_NYT/metadata/v3.metadata.json";
+
+    let sdk_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let s3_url = Url::parse(&meta_path)
+        .map_err(|e| DataFusionError::Execution(format!("Failed to parse url, {e}")))?;
+    let s3 = build_s3(&s3_url, &sdk_config).await?;
+    let s3_arc = Arc::new(s3);
+    ctx.runtime_env()
+        .register_object_store(&s3_url, s3_arc.clone());
+
+
+    let catalog: Arc<dyn Catalog> = Arc::new(
+        SqlCatalog::new("sqlite://", "test", s3_arc.clone())
+            .await
+            .unwrap(),
+    );
+    let identifier = Identifier::parse("test.table1").unwrap();
+
+    let metadata: TableMetadata= serde_json::from_slice(&s3_arc.get(&s3_url.path().into()).await.unwrap().bytes().await.unwrap()).unwrap();
+    print!("metadata: {metadata:?}");
+
+    catalog
+        .clone()
+        .create_table(identifier.clone(), metadata)
+        .await
+        .expect("Failed to register table.");
+
+    let table = if let Tabular::Table(table) = catalog
+        .load_tabular(&identifier)
+        .await
+        .expect("Failed to load table")
+    {
+        Ok(Arc::new(DataFusionTable::from(table)))
+    } else {
+        Err(DataFusionError::Execution(
+            "Entity returned from catalog".to_string(),
+        ))
+    }
+        .unwrap();
+
+    Ok(())
+}
+
+//#[tokio::main]
+async fn mainx() -> Result<()> {
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::new_with_config(config);
 
