@@ -1,20 +1,14 @@
-mod args;
-mod globbing_path;
-mod globbing_table;
-mod object_store_util;
+use std::collections::HashMap;
+use std::env;
+use std::sync::Arc;
 
 use aws_config::BehaviorVersion;
 use aws_credential_types::provider::ProvideCredentials;
 use aws_sdk_glue::types::StorageDescriptor;
 use aws_sdk_glue::Client;
+use aws_types::SdkConfig;
 use clap::Parser;
 use datafusion::catalog::TableReference;
-use std::collections::HashMap;
-use std::env;
-use std::sync::Arc;
-
-use aws_types::SdkConfig;
-
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::file_format::avro::AvroFormat;
 use datafusion::datasource::file_format::csv::CsvFormat;
@@ -24,7 +18,9 @@ use datafusion::datasource::file_format::FileFormat;
 use datafusion::datasource::listing::{
     ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
 };
+use datafusion::datasource::TableProvider;
 use datafusion::prelude::*;
+use deltalake::open_table;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::path::Path;
 use object_store::ObjectStore;
@@ -33,37 +29,10 @@ use url::Url;
 
 use crate::args::Args;
 
-async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
-    let cp = sdk_config.credentials_provider().unwrap();
-    let creds = cp
-        .provide_credentials()
-        .await
-        .map_err(|e| DataFusionError::Execution(format!("Failed to get credentials: {e}")))?;
-
-    let bucket_name = url.host_str().unwrap();
-
-    let builder = AmazonS3Builder::from_env()
-        .with_bucket_name(bucket_name)
-        .with_access_key_id(creds.access_key_id())
-        .with_secret_access_key(creds.secret_access_key());
-
-    let builder = if let Some(session_token) = creds.session_token() {
-        builder.with_token(session_token)
-    } else {
-        builder
-    };
-
-    //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
-    let builder = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
-        builder.with_endpoint(aws_endpoint_url)
-    } else {
-        builder
-    };
-
-    let s3 = builder.build()?;
-
-    Ok(s3)
-}
+mod args;
+mod globbing_path;
+mod globbing_table;
+mod object_store_util;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -87,6 +56,8 @@ async fn main() -> Result<()> {
         ctx.runtime_env()
             .register_object_store(&s3_url, s3_arc.clone());
 
+        deltalake::aws::register_handlers(None);
+
         // add trailing slash to folder
         if !data_path.ends_with('/') {
             let path = Path::parse(s3_url.path())?;
@@ -102,23 +73,27 @@ async fn main() -> Result<()> {
         data_path
     };
 
-    let table_path = ListingTableUrl::parse(data_path)?;
-    let mut config = ListingTableConfig::new(table_path);
-
-    config = if let Some(format) = file_format {
-        config.with_listing_options(ListingOptions::new(format))
+    let table: Arc<dyn TableProvider> = if let Ok(mut delta_table) = open_table(&data_path).await {
+        if let Some(at) = args.at {
+            delta_table.load_with_datetime(at).await?;
+        }
+        Arc::new(delta_table)
     } else {
-        config.infer_options(&ctx.state()).await?
+        let table_path = ListingTableUrl::parse(&data_path)?;
+        let mut config = ListingTableConfig::new(table_path);
+
+        config = if let Some(format) = file_format {
+            config.with_listing_options(ListingOptions::new(format))
+        } else {
+            config.infer_options(&ctx.state()).await?
+        };
+
+        config = config.infer_schema(&ctx.state()).await?;
+        let table = ListingTable::try_new(config)?;
+        Arc::new(table)
     };
 
-    config = config.infer_schema(&ctx.state()).await?;
-
-    let table = ListingTable::try_new(config)?;
-
-    ctx.register_table(
-        TableReference::from("datafusion.public.tbl"),
-        Arc::new(table),
-    )?;
+    ctx.register_table(TableReference::from("datafusion.public.tbl"), table)?;
 
     let query = &args.get_query();
     let df = ctx.sql(query).await?;
@@ -348,4 +323,36 @@ fn lookup_file_format(sd: &StorageDescriptor) -> Result<Arc<dyn FileFormat>> {
     };
     let format = format_result?;
     Ok(format)
+}
+
+async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
+    let cp = sdk_config.credentials_provider().unwrap();
+    let creds = cp
+        .provide_credentials()
+        .await
+        .map_err(|e| DataFusionError::Execution(format!("Failed to get credentials: {e}")))?;
+
+    let bucket_name = url.host_str().unwrap();
+
+    let builder = AmazonS3Builder::from_env()
+        .with_bucket_name(bucket_name)
+        .with_access_key_id(creds.access_key_id())
+        .with_secret_access_key(creds.secret_access_key());
+
+    let builder = if let Some(session_token) = creds.session_token() {
+        builder.with_token(session_token)
+    } else {
+        builder
+    };
+
+    //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+    let builder = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
+        builder.with_endpoint(aws_endpoint_url)
+    } else {
+        builder
+    };
+
+    let s3 = builder.build()?;
+
+    Ok(s3)
 }
