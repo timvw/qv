@@ -248,3 +248,63 @@ async fn run_with_s3_parquet_files_in_folder_no_trailing_slash() -> datafusion::
         .stdout(data_predicate);
     Ok(())
 }
+
+#[tokio::test]
+async fn run_with_local_deltalake() -> datafusion::common::Result<()> {
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg(get_qv_testing_path("data/delta/COVID-19_NYT"))
+        .arg("--at")
+        .arg("2022-01-13T16:39:00+01:00")
+        .arg("-q")
+        .arg("select * from tbl order by date, county, state, fips, cases, deaths");
+
+    let header_predicate =
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+
+    let data_predicate = build_row_regex_predicate(vec![
+        "2020-01-21",
+        "Snohomish",
+        "Washington",
+        "53061",
+        "1",
+        "0",
+    ]);
+
+    cmd.assert()
+        .success()
+        .stdout(header_predicate)
+        .stdout(data_predicate);
+    Ok(())
+}
+
+#[tokio::test]
+async fn run_with_s3_deltalake() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("s3://data/delta/COVID-19_NYT")
+        .arg("--at")
+        .arg("2022-01-13T16:39:00+01:00")
+        .arg("-q")
+        .arg("select * from tbl order by date, county, state, fips, cases, deaths");
+
+    let header_predicate =
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+
+    let data_predicate = build_row_regex_predicate(vec![
+        "2020-01-21",
+        "Snohomish",
+        "Washington",
+        "53061",
+        "1",
+        "0X",
+    ]);
+
+    cmd.assert()
+        .success()
+        .stdout(header_predicate)
+        .stdout(data_predicate);
+    Ok(())
+}
