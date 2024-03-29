@@ -88,17 +88,14 @@ async fn run_with_local_avro_file() -> datafusion::common::Result<()> {
 #[tokio::test]
 async fn run_with_local_ndjson_file() -> datafusion::common::Result<()> {
     let mut cmd = get_qv_cmd()?;
-    let cmd = cmd.arg(get_qv_testing_path(
-        "data/json/ndjson-sample.json",
-    ))
+    let cmd = cmd
+        .arg(get_qv_testing_path("data/json/ndjson-sample.json"))
         .arg("-q")
         .arg("SELECT url from tbl");
 
     let header_predicate = build_row_regex_predicate(vec!["url"]);
 
-    let data_predicate = build_row_regex_predicate(vec![
-        "https://www.yelp.com/search",
-    ]);
+    let data_predicate = build_row_regex_predicate(vec!["https://www.yelp.com/search"]);
 
     cmd.assert()
         .success()
@@ -110,17 +107,14 @@ async fn run_with_local_ndjson_file() -> datafusion::common::Result<()> {
 #[tokio::test]
 async fn run_with_local_ndjson_gz_file() -> datafusion::common::Result<()> {
     let mut cmd = get_qv_cmd()?;
-    let cmd = cmd.arg(get_qv_testing_path(
-        "data/json/ndjson-sample.json.gz",
-    ))
+    let cmd = cmd
+        .arg(get_qv_testing_path("data/json/ndjson-sample.json.gz"))
         .arg("-q")
         .arg("SELECT url from tbl");
 
     let header_predicate = build_row_regex_predicate(vec!["url"]);
 
-    let data_predicate = build_row_regex_predicate(vec![
-        "https://www.yelp.com/search",
-    ]);
+    let data_predicate = build_row_regex_predicate(vec!["https://www.yelp.com/search"]);
 
     cmd.assert()
         .success()
