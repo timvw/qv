@@ -86,6 +86,28 @@ async fn run_with_local_avro_file() -> datafusion::common::Result<()> {
 }
 
 #[tokio::test]
+async fn run_with_local_ndjson_file() -> datafusion::common::Result<()> {
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd.arg(get_qv_testing_path(
+        "data/json/ndjson-sample.json",
+    ))
+        .arg("-q")
+        .arg("SELECT url from tbl");
+
+    let header_predicate = build_row_regex_predicate(vec!["url"]);
+
+    let data_predicate = build_row_regex_predicate(vec![
+        "https://www.yelp.com/search",
+    ]);
+
+    cmd.assert()
+        .success()
+        .stdout(header_predicate)
+        .stdout(data_predicate);
+    Ok(())
+}
+
+#[tokio::test]
 async fn run_with_local_parquet_file() -> datafusion::common::Result<()> {
     let mut cmd = get_qv_cmd()?;
     let cmd = cmd.arg(get_qv_testing_path(
