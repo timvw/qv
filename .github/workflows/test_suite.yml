@@ -22,11 +22,12 @@ jobs:
         run: ./ci/minio_start.sh
       - run: cargo test --all-features -- -Z unstable-options --format json --report-time | tee results.json
       - name: Prepare junit report
-        uses: innoq/action-cargo-test-report
+        id: cargo_reporter
+        uses:  innoq/action-cargo-test-report@v1
         with:
           cargo-test-report-json: 'results.json'
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@main
+        uses: mikepenz/action-junit-report@v4
         if: always() # always run even if the previous step fails
         with:
           check_name: Test Report
