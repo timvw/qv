@@ -268,19 +268,20 @@ fn lookup_file_format(table: Table, sd: &StorageDescriptor) -> Result<Arc<dyn Fi
     };
 
     let table_parameters = table.parameters.unwrap_or_default();
-    let table_type = table_parameters
+    let _table_type = table_parameters
         .get("table_type")
         .map(|x| x.as_str())
         .unwrap_or_default();
+
     // this can be delta...
     // or ICEBERG...
 
     /*
-    Table format: Apache Iceberg
-Input format: -
-Output format: -
-Serde serialization lib:-
-     */
+        Table format: Apache Iceberg
+    Input format: -
+    Output format: -
+    Serde serialization lib:-
+         */
 
     let item: (&str, &str, &str) = (input_format, output_format, serialization_library);
     let format_result: Result<Arc<dyn FileFormat>> = match item {
