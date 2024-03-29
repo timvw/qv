@@ -33,6 +33,7 @@ jobs:
           check_name: Test Report
           fail_on_failure: true
           require_tests: true
+          annotate_only: true
           summary: ${{ steps.cargo_reporter.outputs.summary }}
       - name: Stop minio
         run: ./ci/minio_stop.sh
