@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   test:
-    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/')))
+    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/') || startsWith(github.head_ref, 'release-plz')))
     name: cargo test
     runs-on: ubuntu-latest
     steps:
@@ -90,7 +90,7 @@ jobs:
 
   # Check formatting with rustfmt
   formatting:
-    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/')))
+    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/') || startsWith(github.head_ref, 'release-plz')))
     name: cargo fmt
     runs-on: ubuntu-latest
     steps:
@@ -103,7 +103,7 @@ jobs:
         uses: actions-rust-lang/rustfmt@v1
 
   lint:
-    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/')))
+    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/') || startsWith(github.head_ref, 'release-plz')))
     name: cargo clippy
     runs-on: ubuntu-latest
     steps:
