@@ -22,6 +22,7 @@ use datafusion::datasource::TableProvider;
 use datafusion::prelude::*;
 use deltalake::open_table;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
+use object_store::gcp::{GoogleCloudStorage, GoogleCloudStorageBuilder};
 use object_store::path::Path;
 use object_store::ObjectStore;
 use regex::Regex;
@@ -30,8 +31,6 @@ use url::Url;
 use crate::args::Args;
 
 mod args;
-mod globbing_path;
-mod globbing_table;
 mod object_store_util;
 
 #[tokio::main]
@@ -69,6 +68,20 @@ async fn main() -> Result<()> {
         } else {
             data_path
         }
+    } else {
+        data_path
+    };
+
+    let data_path = if data_path.starts_with("gs://") || data_path.starts_with("gcs://") {
+        let gcs_url = Url::parse(&data_path)
+            .map_err(|e| DataFusionError::Execution(format!("Failed to parse url, {e}")))?;
+        let gcs = build_gcs(&gcs_url).await?;
+        let gcs_arc = Arc::new(gcs);
+        ctx.runtime_env().register_object_store(&gcs_url, gcs_arc);
+
+        deltalake::gcp::register_handlers(None);
+
+        data_path
     } else {
         data_path
     };
@@ -379,4 +392,18 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
     let s3 = builder.build()?;
 
     Ok(s3)
+}
+
+async fn build_gcs(gcs_url: &Url) -> Result<GoogleCloudStorage> {
+    let google_application_credentials = env::var("GOOGLE_APPLICATION_CREDENTIALS")
+        .map_err(|e| DataFusionError::External(Box::new(e)))?;
+
+    let bucket_name = gcs_url.host_str().unwrap();
+
+    let gcs_builder = GoogleCloudStorageBuilder::new();
+    let gcs_builder = gcs_builder.with_bucket_name(bucket_name);
+    let gcs_builder = gcs_builder.with_service_account_path(google_application_credentials);
+    let gcs = gcs_builder.build()?;
+
+    Ok(gcs)
 }
