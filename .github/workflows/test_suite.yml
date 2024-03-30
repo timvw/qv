@@ -37,7 +37,7 @@ jobs:
           tool: grcov
 
       - name: Build
-        run: cargo build --verbose --all-targets
+        run: cargo build --all-targets
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
 
