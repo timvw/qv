@@ -4,6 +4,7 @@ on:
     branches-ignore:
       - 'dependabot/**' #avoid duplicates: only run the PR, not the push
       - 'renovate/**' #avoid duplicates: only run the PR, not the push
+      - 'release-plz**' #avoid duplicates: only run the PR, not the push
       - 'gh-pages' #github pages do not trigger all tests
     tags-ignore:
       - 'v*' #avoid rerun existing commit on release
@@ -18,7 +19,7 @@ concurrency:
 
 jobs:
   test:
-    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/') || startsWith(github.ref, 'release-plz')))
+    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/') || startsWith(github.head_ref, 'release-plz')))
     name: cargo test
     runs-on: ubuntu-latest
     steps:
