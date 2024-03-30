@@ -14,6 +14,10 @@ qv ./datasets/tpc-h-parquet/1/customer -s
 
 ## View data on GCS.
 
+### Configuration
+
+QV expects the environment variable 'GOOGLE_APPLICATION_CREDENTIALS' to exist and point to a file which contains google credentials.
+
 ```bash
 qv gs://datafusion-delta-testing/data/delta/COVID-19_NYT
 ```
