@@ -77,7 +77,8 @@ async fn main() -> Result<()> {
             .map_err(|e| DataFusionError::Execution(format!("Failed to parse url, {e}")))?;
         let gcs = build_gcs(&gcs_url).await?;
         let gcs_arc = Arc::new(gcs);
-        ctx.runtime_env().register_object_store(&gcs_url, gcs_arc.clone());
+        ctx.runtime_env()
+            .register_object_store(&gcs_url, gcs_arc.clone());
 
         deltalake::gcp::register_handlers(None);
 
@@ -405,8 +406,12 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
 }
 
 async fn build_gcs(gcs_url: &Url) -> Result<GoogleCloudStorage> {
-    let google_application_credentials = env::var("GOOGLE_APPLICATION_CREDENTIALS")
-        .map_err(|_| DataFusionError::Execution("Could not find GOOGLE_APPLICATION_CREDENTIALS environment variable"))?;
+    let google_application_credentials =
+        env::var("GOOGLE_APPLICATION_CREDENTIALS").map_err(|_| {
+            DataFusionError::Execution(
+                "Could not find GOOGLE_APPLICATION_CREDENTIALS environment variable",
+            )
+        })?;
 
     let bucket_name = gcs_url.host_str().unwrap();
 
