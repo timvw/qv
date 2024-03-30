@@ -31,7 +31,6 @@ use url::Url;
 use crate::args::Args;
 
 mod args;
-mod object_store_util;
 
 #[tokio::main]
 async fn main() -> Result<()> {
