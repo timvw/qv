@@ -5,7 +5,8 @@ permissions:
 
 on:
   release:
-    types: [published]
+    types: [created]
+    branches: [main]
 
 env:
   CARGO_INCREMENTAL: 0
