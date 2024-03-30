@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2](https://github.com/timvw/qv/compare/v0.9.1...v0.9.2) - 2024-03-30
+
+### Added
+- add test to verify that ndjson works
+
+### Other
+- allow pr builds for release-plz
+- do not build with verbose flag
+- provide code-cov token
+- allow manual launch of test flow
+- fmt
+- add test to verify that gzipped json file is supported
+
 ## [0.9.1](https://github.com/timvw/qv/compare/v0.9.0...v0.9.1) - 2024-03-29
 
 ### Added
