@@ -407,9 +407,9 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
 async fn build_gcs(gcs_url: &Url) -> Result<GoogleCloudStorage> {
     let google_application_credentials =
         env::var("GOOGLE_APPLICATION_CREDENTIALS").map_err(|_| {
-            DataFusionError::Execution(
+            DataFusionError::Execution(String::from(
                 "Could not find GOOGLE_APPLICATION_CREDENTIALS environment variable",
-            )
+            ))
         })?;
 
     let bucket_name = gcs_url.host_str().unwrap();
