@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5](https://github.com/timvw/qv/compare/v0.9.4...v0.9.5) - 2024-03-30
+
+### Added
+- add support for running on gcs
+- Add support for gcs back
+
+### Other
+- allow creation of manual run
+- one more attempt to trigger builds
+- lint
+- remove ref to mod
+- remove more unused files
+- lint
+- remove unused files
+
 ## [0.9.4](https://github.com/timvw/qv/compare/v0.9.3...v0.9.4) - 2024-03-30
 
 ### Other
