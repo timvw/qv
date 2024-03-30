@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4](https://github.com/timvw/qv/compare/v0.9.3...v0.9.4) - 2024-03-30
+
+### Other
+- build and publish more binaries upon release
+
 ## [0.9.3](https://github.com/timvw/qv/compare/v0.9.2...v0.9.3) - 2024-03-30
 
 ### Other
