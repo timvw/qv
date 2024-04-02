@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
+use arrow_util::pretty;
 
 use aws_config::BehaviorVersion;
 use aws_credential_types::provider::ProvideCredentials;
@@ -8,6 +9,7 @@ use aws_sdk_glue::types::{StorageDescriptor, Table};
 use aws_sdk_glue::Client;
 use aws_types::SdkConfig;
 use clap::Parser;
+use datafusion::arrow::array::RecordBatch;
 use datafusion::catalog::TableReference;
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::file_format::avro::AvroFormat;
@@ -19,8 +21,10 @@ use datafusion::datasource::listing::{
     ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
 };
 use datafusion::datasource::TableProvider;
+use datafusion::execution::SendableRecordBatchStream;
 use datafusion::prelude::*;
 use deltalake::open_table;
+use glaredb::args::{LocalArgs, LocalClientOpts, OutputMode, StorageConfigArgs};
 use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::gcp::{GoogleCloudStorage, GoogleCloudStorageBuilder};
 use object_store::path::Path;
@@ -30,10 +34,129 @@ use url::Url;
 
 use crate::args::Args;
 
+use glaredb::local::LocalSession;
+use sqlexec::engine::{Engine, SessionStorageConfig};
+use datafusion_ext::vars::SessionVars;
+use futures::StreamExt;
+
 mod args;
+
+async fn process_stream(stream: SendableRecordBatchStream) -> Result<Vec<RecordBatch>> {
+    let batches = stream
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(batches)
+}
+
+async fn print_stream(
+    stream: SendableRecordBatchStream,
+) -> Result<()> {
+    let schema = stream.schema();
+    let batches = process_stream(stream).await?;
+
+    let disp = pretty::pretty_format_batches(&schema, &batches, Some(120), Some(20))?;
+    println!("{disp}");
+
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
+//fn main() -> Result<()> {
+
+    let sc = StorageConfigArgs {
+        location: None,
+        storage_options: vec![],
+    };
+
+    let lco = LocalClientOpts {
+        spill_path: None,
+        data_dir: None,
+        cloud_url: None,
+        storage_config: sc,
+        timing: false,
+        ignore_rpc_auth: false,
+        mode: OutputMode::Table,
+        max_width: None,
+        max_rows: None,
+        disable_tls: false,
+        cloud_addr: "".to_string(),
+    };
+
+    let query = r#"
+    create or replace external table xx from iceberg options (
+location 's3://data/iceberg/db/COVID-19_NYT',
+region 'eu-central-1',
+access_key_id 'AKIAIOSFODNN7EXAMPLE',
+secret_access_key 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+endpoint 'http://localhost:9000',
+allow_http true
+);
+"#;
+
+    let la = LocalArgs {
+        query: Some(query.to_string()),
+        opts: lco.clone(),
+        log_file: None,
+        debug_tokio: false,
+    };
+
+    let query2 = r#"select * from xx limit 10"#;
+
+    let la2 = LocalArgs {
+        query: Some(query2.to_string()),
+        opts: lco.clone(),
+        log_file: None,
+        debug_tokio: false,
+    };
+
+
+    let session = LocalSession::connect(lco.clone())
+        .await
+        .map_err(|x| DataFusionError::Execution("Failed to build local session".to_string()))?;
+    //session.execute()
+
+    let engine: Engine = get_engine(lco.clone()).await?;
+
+    let mut xs = engine
+        .new_local_session_context(SessionVars::default(), SessionStorageConfig::default())
+        .await
+        .map_err(|_| DataFusionError::Execution("Failed to create new local session ctx".to_string()))?;
+
+    let r1 = xs.execute_sql(query).await
+        .map_err(|_|DataFusionError::Execution("failed to run query1".to_string()))?;
+
+    print_stream(r1).await?;
+
+    let r2 = xs.execute_sql(query2)
+        .await
+        .map_err(|e|DataFusionError::Execution(format!("failed to run query2: {e:?}")))?;
+
+    print_stream(r2).await?;
+
+    Ok(())
+}
+
+async fn get_engine(opts: LocalClientOpts) -> Result<Engine> {
+    let mut engine = if let StorageConfigArgs {
+        location: Some(location),
+        storage_options,
+    } = &opts.storage_config
+    {
+        // TODO: try to consolidate with --data-dir option
+        Engine::from_storage_options(location, &HashMap::from_iter(storage_options.clone()))
+            .await
+            .map_err(|_|DataFusionError::Execution("xx".to_string()))?
+    } else {
+        Engine::from_data_dir(opts.data_dir.as_ref()).await
+            .map_err(|_|DataFusionError::Execution("xx".to_string()))?
+    };
+    Ok(engine)
+}
+
+async fn main2() -> Result<()> {
     let config = SessionConfig::new().with_information_schema(true);
     let ctx = SessionContext::new_with_config(config);
 
