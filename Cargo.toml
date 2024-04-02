@@ -20,7 +20,7 @@ exclude = [
 
 [dependencies]
 aws-config = "1.1"
-aws-sdk-glue = "1.22"
+aws-sdk-glue = "1.23"
 aws-types = "1.1"
 aws-credential-types = "1.1"
 chrono = "0.4"
