@@ -33,6 +33,7 @@ object_store = { version = "0.9", features = ["aws", "gcp"] }
 regex = "1.10"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
 url = "2.5"
+iceberg-rust = { git = "https://github.com/DataFusion-Plus/jankaul-iceberg-rust.git", rev="9ee58925a6ad680adb7560c80a5224ab34d3f7f7"}
 
 [dev-dependencies]
 assert_cmd = "2.0"
