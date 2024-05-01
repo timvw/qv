@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.7](https://github.com/timvw/qv/compare/v0.9.6...v0.9.7) - 2024-05-01
+
+### Fixed
+- *(deps)* update rust crate clap to 4.5.4 ([#119](https://github.com/timvw/qv/pull/119))
+- *(deps)* update rust crate chrono to 0.4.38 ([#118](https://github.com/timvw/qv/pull/118))
+- *(deps)* update rust crate aws-config to 1.2.1 ([#117](https://github.com/timvw/qv/pull/117))
+- *(deps)* update rust crate aws-sdk-glue to 1.27 ([#115](https://github.com/timvw/qv/pull/115))
+- *(deps)* update rust crate aws-sdk-glue to 1.26 ([#113](https://github.com/timvw/qv/pull/113))
+- *(deps)* update aws-sdk-rust monorepo ([#112](https://github.com/timvw/qv/pull/112))
+- *(deps)* update rust crate aws-sdk-glue to 1.24 ([#111](https://github.com/timvw/qv/pull/111))
+- *(deps)* update rust crate aws-sdk-glue to 1.23
+
+### Other
+- *(deps)* update rust crate assert_cmd to 2.0.14 ([#116](https://github.com/timvw/qv/pull/116))
+
 ## [0.9.6](https://github.com/timvw/qv/compare/v0.9.5...v0.9.6) - 2024-03-30
 
 ### Other
