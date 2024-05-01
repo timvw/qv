@@ -19,7 +19,7 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aws-config = "1.2"
+aws-config = "1.2.1"
 aws-sdk-glue = "1.27"
 aws-types = "1.2"
 aws-credential-types = "1.2"
