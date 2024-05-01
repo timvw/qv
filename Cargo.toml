@@ -23,7 +23,7 @@ aws-config = "1.2.1"
 aws-sdk-glue = "1.27"
 aws-types = "1.2"
 aws-credential-types = "1.2"
-chrono = "0.4"
+chrono = "0.4.38"
 clap = { version = "4.5", features = ["derive"] }
 datafusion = { version = "35", features = ["avro"] }
 deltalake = { version = "0.17", default-features = false, features = ["datafusion-ext", "s3", "gcs"] }
