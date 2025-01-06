@@ -136,7 +136,7 @@ async fn run_with_local_parquet_file() -> datafusion::common::Result<()> {
 async fn run_with_local_parquet_files_in_folder() -> datafusion::common::Result<()> {
     let mut cmd = get_qv_cmd()?;
     let cmd = cmd
-        .arg(&get_qv_testing_path("data/iceberg/db/COVID-19_NYT/data"))
+        .arg(get_qv_testing_path("data/iceberg/db/COVID-19_NYT/data"))
         .arg("-q")
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
