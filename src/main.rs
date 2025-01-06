@@ -8,7 +8,6 @@ use aws_sdk_glue::types::{StorageDescriptor, Table};
 use aws_sdk_glue::Client;
 use aws_types::SdkConfig;
 use clap::Parser;
-use datafusion::sql::TableReference;
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::file_format::avro::AvroFormat;
 use datafusion::datasource::file_format::csv::CsvFormat;
@@ -20,6 +19,7 @@ use datafusion::datasource::listing::{
 };
 use datafusion::datasource::TableProvider;
 use datafusion::prelude::*;
+use datafusion::sql::TableReference;
 use deltalake::open_table;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::gcp::{GoogleCloudStorage, GoogleCloudStorageBuilder};
