@@ -8,7 +8,7 @@ use aws_sdk_glue::types::{StorageDescriptor, Table};
 use aws_sdk_glue::Client;
 use aws_types::SdkConfig;
 use clap::Parser;
-use datafusion::catalog::TableReference;
+use datafusion::sql::TableReference;
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::file_format::avro::AvroFormat;
 use datafusion::datasource::file_format::csv::CsvFormat;
