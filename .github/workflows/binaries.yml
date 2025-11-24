@@ -14,6 +14,7 @@ env:
   CARGO_NET_GIT_FETCH_WITH_CLI: true
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
+  PKG_CONFIG_ALLOW_CROSS: 1
   RUST_BACKTRACE: 1
   RUSTFLAGS: -D warnings
   RUSTUP_MAX_RETRIES: 10
@@ -62,7 +63,7 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config
+          sudo apt-get install -y pkg-config libssl-dev ca-certificates
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Install cross
