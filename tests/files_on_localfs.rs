@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use assert_cmd::cargo::CargoError;
 use assert_cmd::prelude::*;
 use datafusion::common::DataFusionError;
