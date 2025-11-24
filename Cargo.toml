@@ -45,6 +45,8 @@ datafusion-physical-expr = { git = "https://github.com/timvw/datafusion.git", re
 datafusion-physical-plan = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
 datafusion-functions = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
 datafusion-functions-aggregate = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
+delta_kernel = { git = "https://github.com/delta-io/delta-kernel-rs.git", rev = "v0.6.0" }
+delta_kernel_derive = { git = "https://github.com/delta-io/delta-kernel-rs.git", rev = "v0.6.0" }
 
 [dev-dependencies]
 assert_cmd = "2.0.14"
