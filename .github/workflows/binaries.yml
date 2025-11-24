@@ -32,20 +32,28 @@ jobs:
         include:
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04
+            needs_openssl: true
           - target: aarch64-unknown-linux-musl
             os: ubuntu-24.04
+            needs_openssl: true
           - target: aarch64-apple-darwin
             os: macos-15
+            needs_openssl: false
           - target: aarch64-pc-windows-msvc
             os: windows-2022
+            needs_openssl: false
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-24.04
+            needs_openssl: true
           - target: x86_64-unknown-linux-musl
             os: ubuntu-24.04
+            needs_openssl: true
           - target: x86_64-apple-darwin
             os: macos-15
+            needs_openssl: false
           - target: x86_64-pc-windows-msvc
             os: windows-2022
+            needs_openssl: false
     timeout-minutes: 60
     steps:
       - name: Checkout repository
@@ -55,6 +63,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
+      - name: Build cross OpenSSL
+        if: startsWith(matrix.os, 'ubuntu') && matrix.needs_openssl == true
+        run: |
+          chmod +x ./scripts/install-cross-openssl.sh
+          ./scripts/install-cross-openssl.sh ${{ matrix.target }}
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/setup-cross-toolchain-action@v1
@@ -63,11 +76,6 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu') && !contains(matrix.target, '-musl')
       - uses: taiki-e/install-action@cross
         if: contains(matrix.target, '-musl')
-      - name: Configure OpenSSL for musl
-        if: contains(matrix.target, '-musl')
-        run: |
-          export OPENSSL_DIR="$(rustc --print sysroot)/lib/rustlib/${{ matrix.target }}/lib"
-          echo "OPENSSL_DIR=$OPENSSL_DIR" >> $GITHUB_ENV
       - run: echo "RUSTFLAGS=${RUSTFLAGS} -C target-feature=+crt-static" >> "${GITHUB_ENV}"
         if: endsWith(matrix.target, 'windows-msvc')
       - uses: taiki-e/upload-rust-binary-action@v1
