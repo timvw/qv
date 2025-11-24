@@ -26,7 +26,7 @@ aws-credential-types = "1.2"
 chrono = "0.4.38"
 clap = { version = "4.5.4", features = ["derive"] }
 #datafusion = { version = "44", features = ["avro"] }
-datafusion = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d", features = ["avro"]}
+datafusion = { git = "https://github.com/timvw/datafusion.git", rev = "5a59ec8b72daac0cb35c323f560e9f0b319b3a14", features = ["avro"]}
 deltalake = { git = "https://github.com/delta-io/delta-rs.git", rev = "rust-v0.23.0", default-features = false, features = ["datafusion-ext", "s3", "gcs"] }
 futures = "0.3"
 glob = "0.3"
