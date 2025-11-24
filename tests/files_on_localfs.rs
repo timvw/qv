@@ -1,17 +1,14 @@
-use assert_cmd::cargo::CargoError;
+#![allow(clippy::result_large_err)]
+
+use assert_cmd::cargo;
 use assert_cmd::prelude::*;
-use datafusion::common::DataFusionError;
 use predicates::prelude::*;
 use predicates::str::RegexPredicate;
 use std::env;
 use std::process::Command;
 
-fn map_cargo_to_datafusion_error(e: CargoError) -> DataFusionError {
-    DataFusionError::External(Box::new(e))
-}
-
 fn get_qv_cmd() -> datafusion::common::Result<Command> {
-    Command::cargo_bin(env!("CARGO_PKG_NAME")).map_err(map_cargo_to_datafusion_error)
+    Ok(Command::new(cargo::cargo_bin!(env!("CARGO_PKG_NAME"))))
 }
 
 fn get_qv_testing_path(rel_data_path: &str) -> String {

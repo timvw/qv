@@ -31,7 +31,7 @@ deltalake = { git = "https://github.com/delta-io/delta-rs.git", rev = "rust-v0.2
 futures = "0.3"
 glob = "0.3"
 object_store = { version = "0.11", features = ["aws", "gcp"] }
-openssl = { version = "0.10", features = ["vendored"] }
+openssl = { version = "0.10", optional = true }
 regex = "1.10"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
 url = "2.5"
@@ -52,3 +52,9 @@ delta_kernel_derive = { git = "https://github.com/delta-io/delta-kernel-rs.git",
 [dev-dependencies]
 assert_cmd = "2.0.14"
 predicates = "3.1"
+
+[features]
+default = []
+# Enable OpenSSL when needed; use vendored builds for fully static artifacts.
+openssl-tls = ["dep:openssl"]
+vendored-openssl = ["openssl-tls", "openssl/vendored"]

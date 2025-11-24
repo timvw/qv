@@ -1,12 +1,9 @@
-name: "Publish binaries"
-
-permissions:
-  contents: write
+name: "Binaries (PR check)"
 
 on:
-  push:
-    tags:
-      - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -24,22 +21,8 @@ defaults:
     shell: bash
 
 jobs:
-  create-release:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Ensure release exists for tag
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  upload-assets:
+  build:
     name: ${{ matrix.target }}
-    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -97,11 +80,13 @@ jobs:
           tool: cross
       - run: echo "RUSTFLAGS=${RUSTFLAGS} -C target-feature=+crt-static" >> "${GITHUB_ENV}"
         if: endsWith(matrix.target, 'windows-msvc')
-      - uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: qv
-          target: ${{ matrix.target }}
-          tar: all
-          zip: windows
-          features: ${{ matrix.features }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build target
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
+            cross build --release --target "${{ matrix.target }}" ${EXTRA_FEATURES}
+          else
+            cargo build --release --target "${{ matrix.target }}" ${EXTRA_FEATURES}
+          fi
+        env:
+          EXTRA_FEATURES: ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
