@@ -79,11 +79,12 @@ jobs:
       - run: echo "RUSTFLAGS=${RUSTFLAGS} -C target-feature=+crt-static" >> "${GITHUB_ENV}"
         if: endsWith(matrix.target, 'windows-msvc')
       - name: Build target
-        uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: qv
-          target: ${{ matrix.target }}
-          tar: none
-          zip: none
-          features: ${{ matrix.features }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
+            cross build --release --target "${{ matrix.target }}" ${EXTRA_FEATURES}
+          else
+            cargo build --release --target "${{ matrix.target }}" ${EXTRA_FEATURES}
+          fi
+        env:
+          EXTRA_FEATURES: ${{ matrix.features && format('--features {0}', matrix.features) || '' }}

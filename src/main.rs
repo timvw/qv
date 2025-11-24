@@ -421,3 +421,4 @@ async fn build_gcs(gcs_url: &Url) -> Result<GoogleCloudStorage> {
 
     Ok(gcs)
 }
+#![allow(clippy::result_large_err)]
