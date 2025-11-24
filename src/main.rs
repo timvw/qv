@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
@@ -421,4 +423,3 @@ async fn build_gcs(gcs_url: &Url) -> Result<GoogleCloudStorage> {
 
     Ok(gcs)
 }
-#![allow(clippy::result_large_err)]
