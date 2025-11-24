@@ -25,7 +25,7 @@ fn map_cargo_to_datafusion_error(e: CargoError) -> DataFusionError {
 }
 
 fn get_qv_cmd() -> datafusion::common::Result<Command> {
-    Command::cargo_bin(env!("CARGO_PKG_NAME")).map_err(map_cargo_to_datafusion_error)
+    cargo::cargo_bin(env!("CARGO_PKG_NAME")).map_err(map_cargo_to_datafusion_error)
 }
 
 fn build_row_regex_predicate(columns: Vec<&str>) -> RegexPredicate {

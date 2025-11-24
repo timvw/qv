@@ -13,7 +13,7 @@ fn map_cargo_to_datafusion_error(e: CargoError) -> DataFusionError {
 }
 
 fn get_qv_cmd() -> datafusion::common::Result<Command> {
-    Command::cargo_bin(env!("CARGO_PKG_NAME")).map_err(map_cargo_to_datafusion_error)
+    cargo::cargo_bin(env!("CARGO_PKG_NAME")).map_err(map_cargo_to_datafusion_error)
 }
 
 fn get_qv_testing_path(rel_data_path: &str) -> String {
