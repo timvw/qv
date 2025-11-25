@@ -1,0 +1,7 @@
+[workspace]
+publish = false                 # do not publish to crates.io
+git_tag_enable = true           # create git tags
+git_release_enable = false      # GitHub release is handled by the Release workflow
+git_release_draft = false
+changelog_update = true
+pr_labels = ["release"]
