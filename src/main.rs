@@ -98,24 +98,19 @@ async fn main() -> Result<()> {
         data_path
     };
 
-    let table: Arc<dyn TableProvider> = if let Ok(mut delta_table) = open_table(&data_path).await {
-        if let Some(at) = args.at {
-            delta_table.load_with_datetime(at).await?;
-        }
-        Arc::new(delta_table)
-    } else {
-        let table_path = ListingTableUrl::parse(&data_path)?;
-        let mut config = ListingTableConfig::new(table_path);
+    let data_path = normalize_data_path(&data_path)?;
 
-        config = if let Some(format) = file_format {
-            config.with_listing_options(ListingOptions::new(format))
+    let table: Arc<dyn TableProvider> = if let Some(delta_url) = parse_as_url(&data_path) {
+        if let Ok(mut delta_table) = open_table(delta_url).await {
+            if let Some(at) = args.at {
+                delta_table.load_with_datetime(at).await?;
+            }
+            Arc::new(delta_table)
         } else {
-            config.infer_options(&ctx.state()).await?
-        };
-
-        config = config.infer_schema(&ctx.state()).await?;
-        let table = ListingTable::try_new(config)?;
-        Arc::new(table)
+            build_listing_table(&data_path, file_format, &ctx).await?
+        }
+    } else {
+        build_listing_table(&data_path, file_format, &ctx).await?
     };
 
     ctx.register_table(TableReference::from("datafusion.public.tbl"), table)?;
@@ -372,6 +367,48 @@ fn lookup_file_format(table: Table, sd: &StorageDescriptor) -> Result<Arc<dyn Fi
 
     let format = format_result?;
     Ok(format)
+}
+
+fn normalize_data_path(data_path: &str) -> Result<String> {
+    if data_path.contains("://") {
+        return Ok(data_path.to_string());
+    }
+
+    let canonical = std::path::Path::new(data_path)
+        .canonicalize()
+        .map_err(|e| {
+            DataFusionError::Execution(format!("Failed to canonicalize path {data_path}: {e}"))
+        })?;
+    let file_url = Url::from_file_path(&canonical).map_err(|_| {
+        DataFusionError::Execution(format!("Failed to convert path {data_path} to file:// URL"))
+    })?;
+
+    Ok(file_url.to_string())
+}
+
+fn parse_as_url(path: &str) -> Option<Url> {
+    Url::parse(path)
+        .ok()
+        .or_else(|| Url::from_file_path(path).ok())
+}
+
+async fn build_listing_table(
+    data_path: &str,
+    file_format: Option<Arc<dyn FileFormat>>,
+    ctx: &SessionContext,
+) -> Result<Arc<dyn TableProvider>> {
+    let table_path = ListingTableUrl::parse(data_path)?;
+    let mut config = ListingTableConfig::new(table_path);
+
+    config = if let Some(format) = file_format {
+        config.with_listing_options(ListingOptions::new(format))
+    } else {
+        config.infer_options(&ctx.state()).await?
+    };
+
+    config = config.infer_schema(&ctx.state()).await?;
+    let table = ListingTable::try_new(config)?;
+    Ok(Arc::new(table))
 }
 
 async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
