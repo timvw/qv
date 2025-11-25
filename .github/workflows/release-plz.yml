@@ -48,6 +48,7 @@ jobs:
             --git-token "${GITHUB_TOKEN}" \
             --repo-url "https://github.com/${GITHUB_REPOSITORY}" \
             --config .release-plz.toml \
+            --registry-project-manifest "$(pwd)/Cargo.toml" \
             -o json
 
   release-tag:
