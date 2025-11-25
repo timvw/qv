@@ -24,22 +24,8 @@ defaults:
     shell: bash
 
 jobs:
-  create-release:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Ensure release exists for tag
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  upload-assets:
+  build-binaries:
     name: ${{ matrix.target }}
-    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -97,11 +83,62 @@ jobs:
           tool: cross
       - run: echo "RUSTFLAGS=${RUSTFLAGS} -C target-feature=+crt-static" >> "${GITHUB_ENV}"
         if: endsWith(matrix.target, 'windows-msvc')
-      - uses: taiki-e/upload-rust-binary-action@v1
+      - name: Build binary
+        run: |
+          set -euo pipefail
+          FEATURES="${{ matrix.features }}"
+          TARGET="${{ matrix.target }}"
+
+          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
+            BUILD_CMD=(cross build --release --target "${TARGET}")
+          else
+            BUILD_CMD=(cargo build --release --target "${TARGET}")
+          fi
+
+          if [[ -n "${FEATURES}" ]]; then
+            BUILD_CMD+=(--features "${FEATURES}")
+          fi
+
+          "${BUILD_CMD[@]}"
+      - name: Package binary (non-Windows)
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          package="qv-${{ matrix.target }}.tar.gz"
+          binary="target/${{ matrix.target }}/release/qv"
+          tar -czf "${package}" -C "$(dirname "${binary}")" "$(basename "${binary}")"
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $package = "qv-${{ matrix.target }}.zip"
+          $binary = "target/${{ matrix.target }}/release/qv.exe"
+          Compress-Archive -Path $binary -DestinationPath $package -Force
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v4
         with:
-          bin: qv
-          target: ${{ matrix.target }}
-          tar: all
-          zip: windows
-          features: ${{ matrix.features }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: qv-${{ matrix.target }}
+          path: qv-${{ matrix.target }}.*
+          if-no-files-found: error
+
+  create-release:
+    name: Create GitHub release
+    runs-on: ubuntu-24.04
+    needs: build-binaries
+    steps:
+      - name: Download packaged binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qv-*
+          merge-multiple: true
+          path: dist
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: dist/**
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
