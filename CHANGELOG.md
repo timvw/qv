@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.7](https://github.com/timvw/qv/compare/v0.9.6...v0.9.7) - 2025-11-25
+## [0.9.15](https://github.com/timvw/qv/compare/v0.9.7...v0.9.15) - 2025-11-25
 
 ### Fixed
 
