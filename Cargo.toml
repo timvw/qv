@@ -19,35 +19,21 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aws-config = "1.2.1"
-aws-sdk-glue = "1.27"
-aws-types = "1.2"
+aws-config = "1.8.11"
+aws-sdk-glue = "1.131.0"
+aws-types = "1.3"
 aws-credential-types = "1.2"
 chrono = "0.4.38"
-clap = { version = "4.5.4", features = ["derive"] }
-#datafusion = { version = "44", features = ["avro"] }
-datafusion = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d", features = ["avro"]}
-deltalake = { git = "https://github.com/delta-io/delta-rs.git", rev = "rust-v0.23.0", default-features = false, features = ["datafusion-ext", "s3", "gcs"] }
+clap = { version = "4.5", features = ["derive"] }
+datafusion = { version = "50.3", features = ["avro"] }
+deltalake = { version = "0.29.4", default-features = false, features = ["datafusion-ext", "s3", "gcs"] }
 futures = "0.3"
 glob = "0.3"
-object_store = { version = "0.11", features = ["aws", "gcp"] }
+object_store = { version = "0.12", features = ["aws", "gcp"] }
 openssl = { version = "0.10", optional = true }
 regex = "1.10"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }
 url = "2.5"
-
-[patch.crates-io]
-datafusion = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d", features = ["avro"]}
-datafusion-expr = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
-datafusion-common = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d", features = ["avro"]}
-datafusion-proto = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
-datafusion-sql = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
-datafusion-physical-expr = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
-datafusion-physical-plan = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
-datafusion-functions = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
-datafusion-functions-aggregate = { git = "https://github.com/timvw/datafusion.git", rev = "6e7c5467510636d97ee9ecf498cd54d7719f031d"}
-delta_kernel = { git = "https://github.com/delta-io/delta-kernel-rs.git", rev = "v0.6.0" }
-delta_kernel_derive = { git = "https://github.com/delta-io/delta-kernel-rs.git", rev = "v0.6.0" }
 
 [dev-dependencies]
 assert_cmd = "2.0.14"
