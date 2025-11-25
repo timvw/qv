@@ -6,6 +6,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.7](https://github.com/timvw/qv/compare/v0.9.6...v0.9.7) - 2025-11-25
+
+### Fixed
+
+- *(deps)* update rust crate clap to 4.5.4 ([#119](https://github.com/timvw/qv/pull/119))
+- *(deps)* update rust crate chrono to 0.4.38 ([#118](https://github.com/timvw/qv/pull/118))
+- *(deps)* update rust crate aws-config to 1.2.1 ([#117](https://github.com/timvw/qv/pull/117))
+- *(deps)* update rust crate aws-sdk-glue to 1.27 ([#115](https://github.com/timvw/qv/pull/115))
+- *(deps)* update rust crate aws-sdk-glue to 1.26 ([#113](https://github.com/timvw/qv/pull/113))
+- *(deps)* update aws-sdk-rust monorepo ([#112](https://github.com/timvw/qv/pull/112))
+- *(deps)* update rust crate aws-sdk-glue to 1.24 ([#111](https://github.com/timvw/qv/pull/111))
+- *(deps)* update rust crate aws-sdk-glue to 1.23
+
+### Other
+
+- Add release-plz automation (PR on main, tag on merged release PR)
+- bump data stack and normalize local paths
+- Install per-target toolchain in binaries workflows
+- Simplify test command creation with cargo_bin!
+- Import assert_cmd::cargo for cargo_bin!
+- Use cargo::cargo_bin! macro in integration tests
+- Place clippy allow at crate root
+- Silence clippy result_large_err in integration tests
+- Fix binaries-check workflow and silence clippy large Err lint
+- Gate vendored OpenSSL per target and add binaries check workflow
+- Use Strawberry Perl for Windows vendored OpenSSL
+- Merge branch 'main' into renovate/mikepenz-action-junit-report-6.x
+- *(deps)* update mikepenz/action-junit-report action to v6
+- Vendor OpenSSL to fix cross builds
+- Inline OpenSSL install command for cross
+- Create release before uploading binaries
+- Add settings to delete merged branches
+- Pin delta_kernel to 0.6.0 for arrow 53
+- Add OpenSSL install helper for cross targets
+- Fix cross builds for Linux targets
+- Switch Linux builds to cross
+- Build OpenSSL for cross targets
+- Fix Linux builds for release workflow
+- Drop FreeBSD build from binary workflow
+- Simplify release flow
+- *(deps)* update mikepenz/action-junit-report action to v5
+- *(deps)* update rust docker tag to v1.83 ([#126](https://github.com/timvw/qv/pull/126))
+- *(deps)* update codecov/codecov-action action to v5
+- make it work with our custom/patched version
+- clippy
+- fmt
+- upgrade to latest versions
+- *(deps)* update rust crate assert_cmd to 2.0.14 ([#116](https://github.com/timvw/qv/pull/116))
+
 ## [0.9.6](https://github.com/timvw/qv/compare/v0.9.5...v0.9.6) - 2024-03-30
 
 ### Other
