@@ -1,6 +1,5 @@
 #![allow(clippy::result_large_err)]
 
-use assert_cmd::cargo;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use predicates::str::RegexPredicate;
@@ -8,7 +7,7 @@ use std::env;
 use std::process::Command;
 
 fn get_qv_cmd() -> datafusion::common::Result<Command> {
-    Ok(Command::new(cargo::cargo_bin!(env!("CARGO_PKG_NAME"))))
+    Ok(Command::new(assert_cmd::cargo::cargo_bin!()))
 }
 
 fn get_qv_testing_path(rel_data_path: &str) -> String {
