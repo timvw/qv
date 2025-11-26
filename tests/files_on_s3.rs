@@ -1,6 +1,5 @@
 #![allow(clippy::result_large_err)]
 
-use assert_cmd::cargo;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use predicates::str::RegexPredicate;
@@ -20,7 +19,7 @@ fn configure_minio() {
 }
 
 fn get_qv_cmd() -> datafusion::common::Result<Command> {
-    Ok(Command::new(cargo::cargo_bin!(env!("CARGO_PKG_NAME"))))
+    Ok(Command::new(assert_cmd::cargo::cargo_bin!()))
 }
 
 fn build_row_regex_predicate(columns: Vec<&str>) -> RegexPredicate {
