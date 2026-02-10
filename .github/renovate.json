@@ -4,6 +4,12 @@
   ],
   "packageRules": [
     {
+      "groupName": "datafusion ecosystem",
+      "matchManagers": ["cargo"],
+      "matchPackagePatterns": ["^datafusion", "^deltalake", "^object_store"],
+      "commitMessageTopic": "datafusion ecosystem dependencies"
+    },
+    {
       "matchPackagePatterns": [
         "*"
       ],
