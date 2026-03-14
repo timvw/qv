@@ -6,6 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.16](https://github.com/timvw/qv/compare/v0.9.15...v0.9.16) - 2026-03-14
+
+### Fixed
+
+- *(renovate)* include major updates in datafusion ecosystem group ([#162](https://github.com/timvw/qv/pull/162))
+
+### Other
+
+- *(deps)* update actions/create-github-app-token action to v3 ([#166](https://github.com/timvw/qv/pull/166))
+- *(deps)* update rust docker tag to v1.94 ([#165](https://github.com/timvw/qv/pull/165))
+- *(deps)* update github artifact actions (major) ([#164](https://github.com/timvw/qv/pull/164))
+- *(renovate)* group datafusion/deltalake/object_store deps together
+- *(deps)* update rust docker tag to v1.93 ([#158](https://github.com/timvw/qv/pull/158))
+- *(deps)* update github artifact actions (major) ([#155](https://github.com/timvw/qv/pull/155))
+- *(deps)* update rust docker tag to v1.92 ([#154](https://github.com/timvw/qv/pull/154))
+- Add explicit permissions to GitHub workflows
+- Fix clippy warnings for Rust 1.91
+- *(deps)* update rust docker tag to v1.91
+- Enable GitHub auto-merge in settings
+- Point release-plz at local manifest to skip crates.io version check
+- *(deps)* update github artifact actions
+- Reorder release flow to upload assets before creating release
+
 ## [0.9.15](https://github.com/timvw/qv/compare/v0.9.7...v0.9.15) - 2025-11-25
 
 ### Fixed
