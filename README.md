@@ -48,7 +48,8 @@ For more examples consult our [Usage examples](Usage.md).
 * Supported storage systems:
   - local file system
   - [S3](https://aws.amazon.com/s3/) and S3-compatible storage, including
-    [Storj](https://www.storj.io/) (+ https links from AWS S3 console)
+    [Storj](https://www.storj.io/) (also accepts URLs copied from the AWS S3
+    console)
   - [GCS](https://cloud.google.com/storage)
 
 ## Installation
@@ -56,4 +57,3 @@ Read the [Installation instructions](Installation.md).
 
 ## Development
 Read the [Development instructions](Development.md).
-
