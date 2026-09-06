@@ -45,9 +45,11 @@ For more examples consult our [Usage examples](Usage.md).
   - [Avro](https://avro.apache.org/)
   - [CSV](https://en.wikipedia.org/wiki/Comma-separated_values)
   - [NDJSON](http://ndjson.org/)
-* Supported storage sytems: 
+* Supported storage systems:
   - local file system
-  - [S3](https://aws.amazon.com/s3/) (+ https links from AWS S3 console)
+  - [S3](https://aws.amazon.com/s3/) and S3-compatible storage, including
+    [Storj](https://www.storj.io/) (also accepts URLs copied from the AWS S3
+    console)
   - [GCS](https://cloud.google.com/storage)
 
 ## Installation
@@ -55,5 +57,3 @@ Read the [Installation instructions](Installation.md).
 
 ## Development
 Read the [Development instructions](Development.md).
-
-
