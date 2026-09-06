@@ -28,25 +28,46 @@ qv gs://datafusion-delta-testing/data/delta/COVID-19_NYT
 
 Usually [Credential](https://github.com/awslabs/aws-sdk-rust/blob/main/sdk/aws-config/src/default_provider/credentials.rs#L25) loading works out of the box when using the [AWS SDK for Rust](https://github.com/awslabs/aws-sdk-rust/tree/main).  
 
-The following environment variables are needed for credentials:
+The following environment variables are needed for static credentials:
 
-* AWS_REGION
-* AWS_ACCESS_KEY_ID
-* AWS_SECRET_ACCESS_KEY
+* `AWS_ACCESS_KEY_ID`
+* `AWS_SECRET_ACCESS_KEY`
+
+You can optionally set `AWS_DEFAULT_REGION`. When it is not set, qv defaults it
+to `eu-central-1`.
 
 In case you have AWS SSO credentials you need to set the following:
-* AWS_PROFILE
 
-In case you have a custom endpoint in place (eg: [minio](https://min.io/)) you also need to set:
-#* AWS_ENDPOINT_URL
-AWS_ENDPOINT
-AWS_ALLOW_HTTP
-https://docs.rs/object_store/latest/object_store/aws/struct.AmazonS3Builder.html
+* `AWS_PROFILE`
 
-
+For an S3-compatible service, set `AWS_ENDPOINT_URL` to its endpoint. Set
+`AWS_ALLOW_HTTP=true` only when the endpoint uses plain HTTP, such as a local
+[MinIO](https://min.io/) development server. See the
+[`AmazonS3Builder` configuration](https://docs.rs/object_store/latest/object_store/aws/struct.AmazonS3Builder.html)
+for the complete list of supported environment variables.
 
 ```bash
 qv s3://tpc-h-parquet/1/customer
+```
+
+### Storj through its S3-compatible gateway
+
+Create S3 credentials in Storj and store them in a named AWS profile so the
+secret does not appear in your shell history:
+
+```ini
+# ~/.aws/credentials
+[storj]
+aws_access_key_id = your-storj-access-key
+aws_secret_access_key = your-storj-secret-key
+```
+
+Then provide the Storj gateway endpoint and select that profile. Storj is
+globally distributed, so qv's default region does not select a storage region.
+
+```bash
+AWS_ENDPOINT_URL="https://gateway.storjshare.io" \
+qv s3://my-bucket/path/to/data.parquet --profile storj
 ```
 
 ## Specify AWS (SSO) profile to use
