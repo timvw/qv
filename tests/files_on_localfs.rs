@@ -16,11 +16,12 @@ fn get_qv_testing_path(rel_data_path: &str) -> String {
 }
 
 fn build_row_regex_predicate(columns: Vec<&str>) -> RegexPredicate {
-    let pattern = columns
+    let row = columns
         .into_iter()
         .map(regex::escape)
         .collect::<Vec<_>>()
         .join("\\s*\\|\\s*");
+    let pattern = format!(r"\|\s*{row}\s*\|");
     predicate::str::is_match(pattern).unwrap()
 }
 
@@ -83,7 +84,7 @@ async fn run_with_local_ndjson_file() -> datafusion::common::Result<()> {
 
     let header_predicate = build_row_regex_predicate(vec!["url"]);
 
-    let data_predicate = build_row_regex_predicate(vec!["https://www.yelp.com/search"]);
+    let data_predicate = predicate::str::contains("https://www.yelp.com/search");
 
     cmd.assert()
         .success()
@@ -102,7 +103,7 @@ async fn run_with_local_ndjson_gz_file() -> datafusion::common::Result<()> {
 
     let header_predicate = build_row_regex_predicate(vec!["url"]);
 
-    let data_predicate = build_row_regex_predicate(vec!["https://www.yelp.com/search"]);
+    let data_predicate = predicate::str::contains("https://www.yelp.com/search");
 
     cmd.assert()
         .success()

@@ -841,12 +841,9 @@ async fn iceberg_storage_properties(
         );
     }
     if let Ok(credentials_path) = env::var("GOOGLE_APPLICATION_CREDENTIALS") {
-        let credentials = std::fs::read_to_string(&credentials_path).map_err(|error| {
-            DataFusionError::Execution(format!(
-                "Failed to read Google credentials from {credentials_path}: {error}"
-            ))
-        })?;
-        properties.insert(GCS_CREDENTIALS_JSON.to_string(), credentials);
+        if let Ok(credentials) = std::fs::read_to_string(credentials_path) {
+            properties.insert(GCS_CREDENTIALS_JSON.to_string(), credentials);
+        }
     }
     properties.extend(parse_catalog_properties(
         &args.catalog_properties,

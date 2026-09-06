@@ -23,11 +23,12 @@ fn get_qv_cmd() -> datafusion::common::Result<Command> {
 }
 
 fn build_row_regex_predicate(columns: Vec<&str>) -> RegexPredicate {
-    let pattern = columns
+    let row = columns
         .into_iter()
         .map(regex::escape)
         .collect::<Vec<_>>()
         .join("\\s*\\|\\s*");
+    let pattern = format!(r"\|\s*{row}\s*\|");
     predicate::str::is_match(pattern).unwrap()
 }
 
