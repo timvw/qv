@@ -145,6 +145,17 @@ qv analytics.events \
   --catalog-warehouse s3://my-warehouse
 ```
 
+For local development and integration tests, the repository starts the official
+Apache Iceberg REST fixture on port 8181 alongside MinIO:
+
+```bash
+./ci/minio_start.sh
+./ci/iceberg_rest_start.sh
+cargo test --all-features
+./ci/iceberg_rest_stop.sh
+./ci/minio_stop.sh
+```
+
 Non-sensitive catalog and storage settings can be repeated as Iceberg
 `KEY=VALUE` properties. Source secrets from environment variables so they do
 not appear in the process argument list or shell history:

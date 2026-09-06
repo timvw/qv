@@ -52,13 +52,21 @@ jobs:
       - name: Start minio
         run: ./ci/minio_start.sh
 
+      - name: Start Iceberg REST catalog
+        run: ./ci/iceberg_rest_start.sh
+
       - name: Test
         run: cargo test --all-features -- -Z unstable-options --format json --report-time | tee results.json
         env:
           LLVM_PROFILE_FILE: "target/coverage/prof/%p-%m.profraw"
           RUSTFLAGS: "-Cinstrument-coverage"
 
+      - name: Stop Iceberg REST catalog
+        if: always()
+        run: ./ci/iceberg_rest_stop.sh
+
       - name: Stop minio
+        if: always()
         run: ./ci/minio_stop.sh
 
       - name: Prepare junit report

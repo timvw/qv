@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Read Apache Iceberg tables from local storage, S3, and GCS using their snapshot metadata.
 - Load Iceberg tables from AWS Glue and Iceberg REST catalogs.
 - Add Iceberg catalog/storage properties, environment-backed secrets, and timestamp-based snapshot selection.
+- Add an end-to-end REST catalog test using the official Apache Iceberg fixture and MinIO.
 
 ### Changed
 

@@ -223,6 +223,37 @@ async fn run_with_s3_iceberg_time_travel() -> datafusion::common::Result<()> {
 }
 
 #[tokio::test]
+async fn run_with_rest_catalog_iceberg_table() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("db.COVID-19_NYT")
+        .arg("--rest-catalog")
+        .arg("http://localhost:8181")
+        .arg("--catalog-warehouse")
+        .arg("s3://data/iceberg")
+        .arg("--catalog-property")
+        .arg("s3.endpoint=http://localhost:9000")
+        .arg("--catalog-property")
+        .arg("s3.path-style-access=true")
+        .arg("--catalog-property-env")
+        .arg("s3.access-key-id=AWS_ACCESS_KEY_ID")
+        .arg("--catalog-property-env")
+        .arg("s3.secret-access-key=AWS_SECRET_ACCESS_KEY")
+        .arg("--catalog-property-env")
+        .arg("s3.region=AWS_REGION")
+        .arg("-q")
+        .arg("select count(*) as row_count from tbl");
+
+    cmd.assert()
+        .success()
+        .stdout(build_row_regex_predicate(vec!["row_count"]))
+        .stdout(build_row_regex_predicate(vec!["1111930"]));
+    Ok(())
+}
+
+#[tokio::test]
 async fn run_with_s3_deltalake() -> datafusion::common::Result<()> {
     configure_minio();
 
