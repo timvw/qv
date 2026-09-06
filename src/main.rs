@@ -17,22 +17,47 @@ use datafusion::datasource::file_format::json::JsonFormat;
 use datafusion::datasource::file_format::parquet::ParquetFormat;
 use datafusion::datasource::file_format::FileFormat;
 use datafusion::datasource::listing::{
-    ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl,
+    ListingOptions, ListingTable, ListingTableConfig, ListingTableConfigExt, ListingTableUrl,
 };
 use datafusion::datasource::TableProvider;
+use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::prelude::*;
 use datafusion::sql::TableReference;
 use deltalake::open_table;
+use futures::TryStreamExt;
+use iceberg::io::{
+    FileIOBuilder, GCS_CREDENTIALS_JSON, S3_ACCESS_KEY_ID, S3_ENDPOINT, S3_PATH_STYLE_ACCESS,
+    S3_REGION, S3_SECRET_ACCESS_KEY, S3_SESSION_TOKEN,
+};
+use iceberg::table::{StaticTable, Table as IcebergTable};
+use iceberg::{Catalog, CatalogBuilder, TableIdent};
+use iceberg_catalog_glue::{
+    GlueCatalogBuilder, AWS_PROFILE_NAME, AWS_REGION_NAME, GLUE_CATALOG_PROP_URI,
+    GLUE_CATALOG_PROP_WAREHOUSE,
+};
+use iceberg_catalog_rest::{
+    RestCatalogBuilder, REST_CATALOG_PROP_URI, REST_CATALOG_PROP_WAREHOUSE,
+};
+use iceberg_datafusion::IcebergStaticTableProvider;
+use iceberg_storage_opendal::OpenDalResolvingStorageFactory;
 use object_store::aws::{AmazonS3, AmazonS3Builder};
 use object_store::gcp::{GoogleCloudStorage, GoogleCloudStorageBuilder};
 use object_store::path::Path;
-use object_store::ObjectStore;
+use object_store::{ObjectStore, ObjectStoreExt};
 use regex::Regex;
 use url::Url;
 
 use crate::args::Args;
 
 mod args;
+
+enum InputSource {
+    Path {
+        location: String,
+        file_format: Option<Arc<dyn FileFormat>>,
+    },
+    Iceberg(IcebergTable),
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,11 +66,21 @@ async fn main() -> Result<()> {
 
     let args: Args = Args::parse();
 
-    let (_, data_path) = replace_s3_console_url_with_s3_path(&args.path.clone());
-
     let sdk_config = get_sdk_config(&args).await;
 
-    let (data_path, file_format) = replace_glue_table_with_path(&data_path, &sdk_config).await?;
+    let (_, data_path) = replace_s3_console_url_with_s3_path(&args.path);
+    let input = resolve_input(&data_path, &args, &sdk_config).await?;
+
+    let (data_path, file_format) = match input {
+        InputSource::Iceberg(table) => {
+            let table = build_iceberg_provider(table, args.at.as_ref()).await?;
+            return run_query(&ctx, &args, table).await;
+        }
+        InputSource::Path {
+            location,
+            file_format,
+        } => (location, file_format),
+    };
 
     let data_path = if data_path.starts_with("s3://") {
         // register s3 object store
@@ -60,7 +95,7 @@ async fn main() -> Result<()> {
 
         // add trailing slash to folder
         if !data_path.ends_with('/') {
-            let path = Path::parse(s3_url.path())?;
+            let path = Path::from_url_path(s3_url.path())?;
             if s3_arc.head(&path).await.is_err() {
                 format!("{data_path}/")
             } else {
@@ -85,7 +120,7 @@ async fn main() -> Result<()> {
 
         // add trailing slash to folder
         if !data_path.ends_with('/') {
-            let path = Path::parse(gcs_url.path())?;
+            let path = Path::from_url_path(gcs_url.path())?;
             if gcs_arc.head(&path).await.is_err() {
                 format!("{data_path}/")
             } else {
@@ -100,12 +135,16 @@ async fn main() -> Result<()> {
 
     let data_path = normalize_data_path(&data_path)?;
 
-    let table: Arc<dyn TableProvider> = if let Some(delta_url) = parse_as_url(&data_path) {
+    let table: Arc<dyn TableProvider> = if let Some(table) =
+        try_build_iceberg_provider(&data_path, &ctx, &sdk_config, &args).await?
+    {
+        table
+    } else if let Some(delta_url) = parse_as_url(&data_path) {
         if let Ok(mut delta_table) = open_table(delta_url).await {
             if let Some(at) = args.at {
                 delta_table.load_with_datetime(at).await?;
             }
-            Arc::new(delta_table)
+            delta_table.table_provider().await?
         } else {
             build_listing_table(&data_path, file_format, &ctx).await?
         }
@@ -113,6 +152,10 @@ async fn main() -> Result<()> {
         build_listing_table(&data_path, file_format, &ctx).await?
     };
 
+    run_query(&ctx, &args, table).await
+}
+
+async fn run_query(ctx: &SessionContext, args: &Args, table: Arc<dyn TableProvider>) -> Result<()> {
     ctx.register_table(TableReference::from("datafusion.public.tbl"), table)?;
 
     let query = &args.get_query();
@@ -140,9 +183,8 @@ fn set_aws_profile_when_needed(args: &Args) {
 }
 
 fn set_aws_region_when_needed() {
-    match env::var("AWS_DEFAULT_REGION") {
-        Ok(_) => {}
-        Err(_) => env::set_var("AWS_DEFAULT_REGION", "eu-central-1"),
+    if env::var("AWS_DEFAULT_REGION").is_err() && env::var("AWS_REGION").is_err() {
+        env::set_var("AWS_DEFAULT_REGION", "eu-central-1");
     }
 }
 
@@ -189,16 +231,236 @@ fn test_replace_s3_console_url_with_s3_path() -> Result<()> {
     Ok(())
 }
 
-async fn replace_glue_table_with_path(
-    path: &str,
-    sdk_config: &SdkConfig,
-) -> Result<(String, Option<Arc<dyn FileFormat>>)> {
-    if let Some((database, table)) = parse_glue_url(path) {
-        let (location, format) = get_path_and_format(sdk_config, &database, &table).await?;
-        Ok((location, Some(format)))
-    } else {
-        Ok((String::from(path), None))
+async fn resolve_input(path: &str, args: &Args, sdk_config: &SdkConfig) -> Result<InputSource> {
+    if let Some(catalog_uri) = &args.rest_catalog {
+        return load_rest_catalog_table(path, catalog_uri, args).await;
     }
+
+    let Some((database_name, table_name)) = parse_glue_url(path) else {
+        return Ok(InputSource::Path {
+            location: path.to_string(),
+            file_format: None,
+        });
+    };
+
+    let table = get_glue_table(sdk_config, &database_name, &table_name).await?;
+    if is_iceberg_glue_table(&table) {
+        let table =
+            load_glue_iceberg_table(table, &database_name, &table_name, args, sdk_config).await?;
+        return Ok(InputSource::Iceberg(table));
+    }
+
+    let sd = table.storage_descriptor().ok_or_else(|| {
+        DataFusionError::Execution(format!(
+            "Could not find storage descriptor for {database_name}.{table_name} in Glue"
+        ))
+    })?;
+    let location = lookup_storage_location(sd)?;
+    let file_format = lookup_file_format(sd)?;
+
+    Ok(InputSource::Path {
+        location,
+        file_format: Some(file_format),
+    })
+}
+
+async fn load_rest_catalog_table(
+    table_name: &str,
+    catalog_uri: &str,
+    args: &Args,
+) -> Result<InputSource> {
+    let mut properties =
+        parse_catalog_properties(&args.catalog_properties, &args.catalog_property_env)?;
+    properties.insert(REST_CATALOG_PROP_URI.to_string(), catalog_uri.to_string());
+    if let Some(warehouse) = &args.catalog_warehouse {
+        properties.insert(REST_CATALOG_PROP_WAREHOUSE.to_string(), warehouse.clone());
+    }
+
+    let catalog = RestCatalogBuilder::default()
+        .with_storage_factory(Arc::new(OpenDalResolvingStorageFactory::new()))
+        .load("rest", properties)
+        .await
+        .map_err(iceberg_error)?;
+    let ident = parse_table_ident(table_name)?;
+    let table = catalog.load_table(&ident).await.map_err(iceberg_error)?;
+
+    Ok(InputSource::Iceberg(table))
+}
+
+fn parse_catalog_properties(
+    values: &[String],
+    environment_values: &[String],
+) -> Result<HashMap<String, String>> {
+    let mut properties = HashMap::new();
+    for (index, property) in values.iter().enumerate() {
+        let (key, value) = property.split_once('=').ok_or_else(|| {
+            DataFusionError::Configuration(format!(
+                "Invalid catalog property #{}; expected KEY=VALUE",
+                index + 1
+            ))
+        })?;
+        if key.is_empty() {
+            return Err(DataFusionError::Configuration(format!(
+                "Catalog property #{} has an empty key",
+                index + 1
+            )));
+        }
+        properties.insert(key.to_string(), value.to_string());
+    }
+
+    for (index, property) in environment_values.iter().enumerate() {
+        let (key, variable) = property.split_once('=').ok_or_else(|| {
+            DataFusionError::Configuration(format!(
+                "Invalid environment-backed catalog property #{}; expected KEY=ENV_VAR",
+                index + 1
+            ))
+        })?;
+        if key.is_empty() || variable.is_empty() {
+            return Err(DataFusionError::Configuration(format!(
+                "Environment-backed catalog property #{} has an empty key or variable name",
+                index + 1
+            )));
+        }
+        let value = env::var(variable).map_err(|_| {
+            DataFusionError::Configuration(format!(
+                "Environment variable '{variable}' is not set for catalog property #{}",
+                index + 1
+            ))
+        })?;
+        properties.insert(key.to_string(), value);
+    }
+
+    Ok(properties)
+}
+
+fn parse_table_ident(value: &str) -> Result<TableIdent> {
+    let parts = value.split('.').collect::<Vec<_>>();
+    if parts.len() < 2 || parts.iter().any(|part| part.is_empty()) {
+        return Err(DataFusionError::Configuration(format!(
+            "Iceberg catalog table must be namespace-qualified, for example 'analytics.events'; got '{value}'"
+        )));
+    }
+    TableIdent::from_strs(parts).map_err(iceberg_error)
+}
+
+#[test]
+fn test_catalog_arguments() -> Result<()> {
+    assert_eq!(
+        parse_table_ident("analytics.events")?,
+        TableIdent::from_strs(["analytics", "events"]).map_err(iceberg_error)?
+    );
+    assert_eq!(
+        parse_table_ident("org.analytics.events")?,
+        TableIdent::from_strs(["org", "analytics", "events"]).map_err(iceberg_error)?
+    );
+    assert!(parse_table_ident("events").is_err());
+
+    let properties = parse_catalog_properties(
+        &[
+            "token=secret".to_string(),
+            "header.X-Tenant=acme".to_string(),
+        ],
+        &[],
+    )?;
+    assert_eq!(properties.get("token").map(String::as_str), Some("secret"));
+    assert_eq!(
+        properties.get("header.X-Tenant").map(String::as_str),
+        Some("acme")
+    );
+    assert!(parse_catalog_properties(&["invalid".to_string()], &[]).is_err());
+
+    let variable = "QV_TEST_CATALOG_SECRET";
+    env::set_var(variable, "from-env");
+    let properties = parse_catalog_properties(&[], &[format!("token={variable}")])?;
+    env::remove_var(variable);
+    assert_eq!(
+        properties.get("token").map(String::as_str),
+        Some("from-env")
+    );
+    assert!(parse_catalog_properties(&[], &[format!("token={variable}")]).is_err());
+    Ok(())
+}
+
+async fn get_glue_table(
+    sdk_config: &SdkConfig,
+    database_name: &str,
+    table_name: &str,
+) -> Result<Table> {
+    Client::new(sdk_config)
+        .get_table()
+        .set_database_name(Some(database_name.to_string()))
+        .set_name(Some(table_name.to_string()))
+        .send()
+        .await
+        .map_err(|e| DataFusionError::External(Box::new(e)))?
+        .table
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not find {database_name}.{table_name} in Glue"
+            ))
+        })
+}
+
+fn is_iceberg_glue_table(table: &Table) -> bool {
+    table
+        .parameters
+        .as_ref()
+        .and_then(|parameters| parameters.get("table_type"))
+        .is_some_and(|table_type| table_type.eq_ignore_ascii_case("ICEBERG"))
+}
+
+async fn load_glue_iceberg_table(
+    table: Table,
+    database_name: &str,
+    table_name: &str,
+    args: &Args,
+    sdk_config: &SdkConfig,
+) -> Result<IcebergTable> {
+    let warehouse = table
+        .storage_descriptor()
+        .and_then(StorageDescriptor::location)
+        .map(ToString::to_string)
+        .or_else(|| {
+            table
+                .parameters
+                .as_ref()
+                .and_then(|parameters| parameters.get("metadata_location"))
+                .and_then(|location| location.split_once("/metadata/").map(|(root, _)| root))
+                .map(ToString::to_string)
+        })
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!(
+                "Could not determine the warehouse for Iceberg table {database_name}.{table_name}"
+            ))
+        })?;
+
+    let mut properties = iceberg_storage_properties(sdk_config, args).await?;
+    properties
+        .entry(GLUE_CATALOG_PROP_WAREHOUSE.to_string())
+        .or_insert(warehouse);
+    if let Some(profile) = &args.profile {
+        properties
+            .entry(AWS_PROFILE_NAME.to_string())
+            .or_insert_with(|| profile.clone());
+    }
+    if let Some(region) = sdk_config.region() {
+        properties
+            .entry(AWS_REGION_NAME.to_string())
+            .or_insert_with(|| region.as_ref().to_string());
+    }
+    if let Ok(endpoint) = env::var("AWS_ENDPOINT_URL_GLUE") {
+        properties
+            .entry(GLUE_CATALOG_PROP_URI.to_string())
+            .or_insert(endpoint);
+    }
+
+    let catalog = GlueCatalogBuilder::default()
+        .with_storage_factory(Arc::new(OpenDalResolvingStorageFactory::new()))
+        .load("glue", properties)
+        .await
+        .map_err(iceberg_error)?;
+    let ident = TableIdent::from_strs([database_name, table_name]).map_err(iceberg_error)?;
+    catalog.load_table(&ident).await.map_err(iceberg_error)
 }
 
 fn parse_glue_url(s: &str) -> Option<(String, String)> {
@@ -219,39 +481,6 @@ fn test_parse_glue_url() {
     );
 }
 
-async fn get_path_and_format(
-    sdk_config: &SdkConfig,
-    database_name: &str,
-    table_name: &str,
-) -> Result<(String, Arc<dyn FileFormat>)> {
-    let client: Client = Client::new(sdk_config);
-    let table = client
-        .get_table()
-        .set_database_name(Some(database_name.to_string()))
-        .set_name(Some(table_name.to_string()))
-        .send()
-        .await
-        .map_err(|e| DataFusionError::External(Box::new(e)))?
-        .table
-        .ok_or_else(|| {
-            DataFusionError::Execution(format!(
-                "Could not find {}.{} in glue",
-                database_name, table_name
-            ))
-        })?;
-
-    let sd = table.storage_descriptor().ok_or_else(|| {
-        DataFusionError::Execution(format!(
-            "Could not find storage descriptor for {}.{} in glue",
-            database_name, table_name
-        ))
-    })?;
-
-    let location = lookup_storage_location(sd)?;
-    let format_arc = lookup_file_format(table.clone(), sd)?;
-    Ok((location, format_arc))
-}
-
 fn lookup_storage_location(sd: &StorageDescriptor) -> Result<String> {
     let location = sd.location().ok_or_else(|| {
         DataFusionError::Execution(format!("Could not find sd.location for {sd:#?}",))
@@ -259,7 +488,7 @@ fn lookup_storage_location(sd: &StorageDescriptor) -> Result<String> {
     Ok(location.to_string())
 }
 
-fn lookup_file_format(table: Table, sd: &StorageDescriptor) -> Result<Arc<dyn FileFormat>> {
+fn lookup_file_format(sd: &StorageDescriptor) -> Result<Arc<dyn FileFormat>> {
     let empty_str = String::from("");
     let input_format = sd.input_format.as_ref().unwrap_or(&empty_str);
     let output_format = sd.output_format.as_ref().unwrap_or(&empty_str);
@@ -286,22 +515,6 @@ fn lookup_file_format(table: Table, sd: &StorageDescriptor) -> Result<Arc<dyn Fi
         Some(x) => x.clone(),
         None => HashMap::new(),
     };
-
-    let table_parameters = table.parameters.unwrap_or_default();
-    let _table_type = table_parameters
-        .get("table_type")
-        .map(|x| x.as_str())
-        .unwrap_or_default();
-
-    // this can be delta...
-    // or ICEBERG...
-
-    /*
-        Table format: Apache Iceberg
-    Input format: -
-    Output format: -
-    Serde serialization lib:-
-         */
 
     let item: (&str, &str, &str) = (input_format, output_format, serialization_library);
     let format_result: Result<Arc<dyn FileFormat>> = match item {
@@ -392,6 +605,267 @@ fn parse_as_url(path: &str) -> Option<Url> {
         .or_else(|| Url::from_file_path(path).ok())
 }
 
+async fn try_build_iceberg_provider(
+    data_path: &str,
+    ctx: &SessionContext,
+    sdk_config: &SdkConfig,
+    args: &Args,
+) -> Result<Option<Arc<dyn TableProvider>>> {
+    let Some(metadata_location) = find_iceberg_metadata(data_path, ctx).await? else {
+        return Ok(None);
+    };
+
+    let file_io = FileIOBuilder::new(Arc::new(OpenDalResolvingStorageFactory::new()))
+        .with_props(iceberg_storage_properties(sdk_config, args).await?)
+        .build();
+    let ident = TableIdent::from_strs(["qv", "tbl"]).map_err(iceberg_error)?;
+    let table = StaticTable::from_metadata_file(&metadata_location, ident, file_io)
+        .await
+        .map_err(iceberg_error)?
+        .into_table();
+
+    Ok(Some(build_iceberg_provider(table, args.at.as_ref()).await?))
+}
+
+async fn build_iceberg_provider(
+    table: IcebergTable,
+    at: Option<&chrono::DateTime<chrono::Utc>>,
+) -> Result<Arc<dyn TableProvider>> {
+    let provider = if let Some(at) = at {
+        let metadata = table.metadata();
+        let snapshot_id = if metadata.history().is_empty() {
+            metadata
+                .snapshots()
+                .filter(|snapshot| snapshot.timestamp_ms() <= at.timestamp_millis())
+                .max_by_key(|snapshot| snapshot.timestamp_ms())
+                .map(|snapshot| snapshot.snapshot_id())
+        } else {
+            metadata
+                .history()
+                .iter()
+                .filter(|entry| entry.timestamp_ms() <= at.timestamp_millis())
+                .max_by_key(|entry| entry.timestamp_ms())
+                .map(|entry| entry.snapshot_id)
+        }
+        .ok_or_else(|| {
+            DataFusionError::Execution(format!("Iceberg table has no snapshot at or before {at}"))
+        })?;
+        IcebergStaticTableProvider::try_new_from_table_snapshot(table.clone(), snapshot_id)
+            .await
+            .map_err(iceberg_error)?
+    } else {
+        IcebergStaticTableProvider::try_new_from_table(table)
+            .await
+            .map_err(iceberg_error)?
+    };
+    Ok(Arc::new(provider))
+}
+
+async fn find_iceberg_metadata(data_path: &str, ctx: &SessionContext) -> Result<Option<String>> {
+    let data_path = data_path.trim_end_matches('/');
+    if data_path.ends_with(".metadata.json") {
+        return Ok(Some(data_path.to_string()));
+    }
+
+    let mut root_url = match Url::parse(data_path) {
+        Ok(url) => url,
+        Err(_) => return Ok(None),
+    };
+    if root_url.scheme() == "file" && root_url.to_file_path().is_ok_and(|path| path.is_file()) {
+        return Ok(None);
+    }
+    let store_url = if root_url.scheme() == "file" {
+        ObjectStoreUrl::local_filesystem()
+    } else {
+        let authority = root_url.host_str().ok_or_else(|| {
+            DataFusionError::Execution(format!("URL has no storage authority: {root_url}"))
+        })?;
+        ObjectStoreUrl::parse(format!("{}://{authority}", root_url.scheme()))?
+    };
+    let store = ctx.runtime_env().object_store(store_url)?;
+    let object_path = Path::from_url_path(root_url.path())?;
+    if root_url.scheme() != "file" && store.head(&object_path).await.is_ok() {
+        return Ok(None);
+    }
+    let metadata_prefix = object_path.join("metadata");
+    let mut entries = store.list(Some(&metadata_prefix));
+    let mut candidates = Vec::new();
+    let mut saw_metadata_json = false;
+
+    while let Some(entry) = entries
+        .try_next()
+        .await
+        .map_err(|error| DataFusionError::External(Box::new(error)))?
+    {
+        let file_name = entry.location.filename().unwrap_or_default();
+        saw_metadata_json |= file_name.ends_with(".metadata.json");
+        if let Some(version) = iceberg_metadata_version(file_name) {
+            candidates.push((version, entry.location));
+        }
+    }
+
+    let version_hint_path = metadata_prefix.clone().join("version-hint.text");
+    let hinted_version = match store.get(&version_hint_path).await {
+        Ok(result) => {
+            let bytes = result
+                .bytes()
+                .await
+                .map_err(|error| DataFusionError::External(Box::new(error)))?;
+            Some(
+                String::from_utf8_lossy(&bytes)
+                    .trim()
+                    .parse::<u64>()
+                    .map_err(|error| {
+                        DataFusionError::Execution(format!(
+                            "Invalid Iceberg version hint at {version_hint_path}: {error}"
+                        ))
+                    })?,
+            )
+        }
+        Err(object_store::Error::NotFound { .. }) => None,
+        Err(error) => return Err(DataFusionError::External(Box::new(error))),
+    };
+    let selected = if let Some(version) = hinted_version {
+        candidates
+            .iter()
+            .filter(|(candidate_version, _)| *candidate_version == version)
+            .max()
+            .cloned()
+            .ok_or_else(|| {
+                DataFusionError::Execution(format!(
+                    "Iceberg version hint {version} has no matching metadata file under {metadata_prefix}"
+                ))
+            })?
+    } else if let Some(candidate) = candidates.into_iter().max() {
+        candidate
+    } else if saw_metadata_json {
+        return Err(DataFusionError::Execution(format!(
+            "No supported Iceberg metadata filename found under {metadata_prefix}"
+        )));
+    } else {
+        return Ok(None);
+    };
+    root_url.set_path(&format!("/{}", selected.1));
+    root_url.set_query(None);
+    root_url.set_fragment(None);
+
+    Ok(Some(root_url.to_string()))
+}
+
+fn iceberg_metadata_version(file_name: &str) -> Option<u64> {
+    if !file_name.ends_with(".metadata.json") {
+        return None;
+    }
+
+    if let Some(version) = file_name
+        .strip_prefix('v')
+        .and_then(|name| name.split('.').next())
+        .and_then(|version| version.parse().ok())
+    {
+        return Some(version);
+    }
+
+    file_name
+        .split_once('-')
+        .and_then(|(version, _)| version.parse().ok())
+}
+
+#[test]
+fn test_iceberg_metadata_version() {
+    assert_eq!(iceberg_metadata_version("v3.metadata.json"), Some(3));
+    assert_eq!(
+        iceberg_metadata_version("00042-acde.metadata.json"),
+        Some(42)
+    );
+    assert_eq!(iceberg_metadata_version("snap-42.avro"), None);
+}
+
+#[tokio::test]
+async fn test_find_local_iceberg_metadata_honors_version_hint() -> Result<()> {
+    let directory = tempfile::Builder::new()
+        .prefix("qv iceberg ")
+        .tempdir()
+        .map_err(|error| DataFusionError::External(Box::new(error)))?;
+    let metadata = directory.path().join("metadata");
+    std::fs::create_dir(&metadata).map_err(|error| DataFusionError::External(Box::new(error)))?;
+    std::fs::write(metadata.join("v1.metadata.json"), [])
+        .map_err(|error| DataFusionError::External(Box::new(error)))?;
+    std::fs::write(metadata.join("v2.metadata.json"), [])
+        .map_err(|error| DataFusionError::External(Box::new(error)))?;
+    std::fs::write(metadata.join("version-hint.text"), "1")
+        .map_err(|error| DataFusionError::External(Box::new(error)))?;
+
+    let table_url = Url::from_directory_path(directory.path()).map_err(|_| {
+        DataFusionError::Execution("Failed to create local test table URL".to_string())
+    })?;
+    let found = find_iceberg_metadata(table_url.as_str(), &SessionContext::new()).await?;
+
+    assert!(found
+        .as_deref()
+        .is_some_and(|location| location.ends_with("/metadata/v1.metadata.json")));
+    Ok(())
+}
+
+async fn iceberg_storage_properties(
+    sdk_config: &SdkConfig,
+    args: &Args,
+) -> Result<HashMap<String, String>> {
+    let mut properties = HashMap::new();
+
+    if let Some(credentials_provider) = sdk_config.credentials_provider() {
+        if let Ok(credentials) = credentials_provider.provide_credentials().await {
+            properties.insert(
+                S3_ACCESS_KEY_ID.to_string(),
+                credentials.access_key_id().to_string(),
+            );
+            properties.insert(
+                S3_SECRET_ACCESS_KEY.to_string(),
+                credentials.secret_access_key().to_string(),
+            );
+            if let Some(token) = credentials.session_token() {
+                properties.insert(S3_SESSION_TOKEN.to_string(), token.to_string());
+            }
+        }
+    }
+    if let Some(region) = sdk_config.region() {
+        properties.insert(S3_REGION.to_string(), region.as_ref().to_string());
+    }
+    if let Some(endpoint) = s3_endpoint() {
+        properties.insert(S3_ENDPOINT.to_string(), endpoint);
+        let path_style_access = env::var("AWS_VIRTUAL_HOSTED_STYLE_REQUEST")
+            .map(|value| !value.eq_ignore_ascii_case("true"))
+            .unwrap_or(true);
+        properties.insert(
+            S3_PATH_STYLE_ACCESS.to_string(),
+            path_style_access.to_string(),
+        );
+    }
+    if let Ok(credentials_path) = env::var("GOOGLE_APPLICATION_CREDENTIALS") {
+        let credentials = std::fs::read_to_string(&credentials_path).map_err(|error| {
+            DataFusionError::Execution(format!(
+                "Failed to read Google credentials from {credentials_path}: {error}"
+            ))
+        })?;
+        properties.insert(GCS_CREDENTIALS_JSON.to_string(), credentials);
+    }
+    properties.extend(parse_catalog_properties(
+        &args.catalog_properties,
+        &args.catalog_property_env,
+    )?);
+
+    Ok(properties)
+}
+
+fn s3_endpoint() -> Option<String> {
+    env::var("AWS_ENDPOINT_URL_S3")
+        .ok()
+        .or_else(|| env::var("AWS_ENDPOINT_URL").ok())
+}
+
+fn iceberg_error(error: iceberg::Error) -> DataFusionError {
+    DataFusionError::External(Box::new(error))
+}
+
 async fn build_listing_table(
     data_path: &str,
     file_format: Option<Arc<dyn FileFormat>>,
@@ -432,7 +906,7 @@ async fn build_s3(url: &Url, sdk_config: &SdkConfig) -> Result<AmazonS3> {
     };
 
     //https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
-    let builder = if let Ok(aws_endpoint_url) = env::var("AWS_ENDPOINT_URL") {
+    let builder = if let Some(aws_endpoint_url) = s3_endpoint() {
         builder.with_endpoint(aws_endpoint_url)
     } else {
         builder

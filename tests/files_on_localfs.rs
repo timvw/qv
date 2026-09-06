@@ -16,7 +16,11 @@ fn get_qv_testing_path(rel_data_path: &str) -> String {
 }
 
 fn build_row_regex_predicate(columns: Vec<&str>) -> RegexPredicate {
-    let pattern = columns.join("\\s*|\\s*");
+    let pattern = columns
+        .into_iter()
+        .map(regex::escape)
+        .collect::<Vec<_>>()
+        .join("\\s*\\|\\s*");
     predicate::str::is_match(pattern).unwrap()
 }
 
@@ -117,7 +121,7 @@ async fn run_with_local_parquet_file() -> datafusion::common::Result<()> {
     let header_predicate = build_row_regex_predicate(vec!["reply", "blog_id"]);
 
     let data_predicate = build_row_regex_predicate(vec![
-        "\\{reply_id: 332770973, next_id: }",
+        "{reply_id: 332770973, next_id: }",
         "-1473106667809783919",
     ]);
 
@@ -137,7 +141,7 @@ async fn run_with_local_parquet_files_in_folder() -> datafusion::common::Result<
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
     let header_predicate =
-        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
 
     let data_predicate = build_row_regex_predicate(vec![
         "2020-01-21",
@@ -166,7 +170,7 @@ async fn run_with_local_deltalake() -> datafusion::common::Result<()> {
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
     let header_predicate =
-        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
 
     let data_predicate = build_row_regex_predicate(vec![
         "2020-01-21",
