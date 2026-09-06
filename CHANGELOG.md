@@ -6,6 +6,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.16](https://github.com/timvw/qv/compare/v0.9.15...v0.9.16) - 2026-09-06
+
+### Added
+
+- upgrade data stack and add Iceberg support
+
+### Fixed
+
+- address automated review feedback
+- *(renovate)* include major updates in datafusion ecosystem group ([#162](https://github.com/timvw/qv/pull/162))
+
+### Other
+
+- exercise Iceberg REST catalog end to end
+- clarify S3 console URL support
+- explain Storj S3 gateway configuration
+- *(deps)* update rust docker tag to v1.98 ([#174](https://github.com/timvw/qv/pull/174))
+- *(deps)* update rust docker tag to v1.97 ([#173](https://github.com/timvw/qv/pull/173))
+- *(deps)* update actions/checkout action to v7 ([#172](https://github.com/timvw/qv/pull/172))
+- *(deps)* update codecov/codecov-action action to v7 ([#171](https://github.com/timvw/qv/pull/171))
+- *(deps)* update rust docker tag to v1.96 ([#170](https://github.com/timvw/qv/pull/170))
+- *(deps)* update rust docker tag to v1.95 ([#169](https://github.com/timvw/qv/pull/169))
+- *(deps)* update softprops/action-gh-release action to v3 ([#168](https://github.com/timvw/qv/pull/168))
+- *(deps)* update codecov/codecov-action action to v6 ([#167](https://github.com/timvw/qv/pull/167))
+- *(deps)* update actions/create-github-app-token action to v3 ([#166](https://github.com/timvw/qv/pull/166))
+- *(deps)* update rust docker tag to v1.94 ([#165](https://github.com/timvw/qv/pull/165))
+- *(deps)* update github artifact actions (major) ([#164](https://github.com/timvw/qv/pull/164))
+- *(renovate)* group datafusion/deltalake/object_store deps together
+- *(deps)* update rust docker tag to v1.93 ([#158](https://github.com/timvw/qv/pull/158))
+- *(deps)* update github artifact actions (major) ([#155](https://github.com/timvw/qv/pull/155))
+- *(deps)* update rust docker tag to v1.92 ([#154](https://github.com/timvw/qv/pull/154))
+- Add explicit permissions to GitHub workflows
+- Fix clippy warnings for Rust 1.91
+- *(deps)* update rust docker tag to v1.91
+- Enable GitHub auto-merge in settings
+- Point release-plz at local manifest to skip crates.io version check
+- *(deps)* update github artifact actions
+- Reorder release flow to upload assets before creating release
+
 ### Added
 
 - Read Apache Iceberg tables from local storage, S3, and GCS using their snapshot metadata.

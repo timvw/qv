@@ -5061,7 +5061,7 @@ dependencies = [
 
 [[package]]
 name = "qv"
-version = "0.9.15"
+version = "0.9.16"
 dependencies = [
  "assert_cmd",
  "aws-config",
