@@ -23,11 +23,27 @@ pub struct Args {
     #[clap(short, long)]
     pub profile: Option<String>,
 
-    /// Optional timestamp for delta table
+    /// Iceberg REST catalog URI. When set, PATH is a namespace-qualified table name
+    #[clap(long, value_name = "URI")]
+    pub rest_catalog: Option<String>,
+
+    /// Optional warehouse passed to the Iceberg REST catalog
+    #[clap(long, value_name = "LOCATION", requires = "rest_catalog")]
+    pub catalog_warehouse: Option<String>,
+
+    /// Iceberg REST catalog or storage property (KEY=VALUE); may be repeated
+    #[clap(long = "catalog-property", value_name = "KEY=VALUE")]
+    pub catalog_properties: Vec<String>,
+
+    /// Iceberg property sourced from an environment variable (KEY=ENV_VAR); may be repeated
+    #[clap(long = "catalog-property-env", value_name = "KEY=ENV_VAR")]
+    pub catalog_property_env: Vec<String>,
+
+    /// Optional timestamp for Delta Lake or Iceberg time travel
     #[clap(
         short,
         long,
-        help = "Timestamp to load deltatable in RFC format, eg: 2022-01-13T16:39:00+01:00"
+        help = "Timestamp for Delta Lake or Iceberg time travel in RFC format, eg: 2022-01-13T16:39:00+01:00"
     )]
     pub at: Option<DateTime<Utc>>,
 }
@@ -41,36 +57,4 @@ impl Args {
         };
         query
     }
-
-    /*
-    pub async fn get_globbing_path(&self) -> Result<GlobbingPath> {
-        let (data_location, maybe_sdk_config) = match update_s3_console_url(&self.path) {
-            (true, updated_location) => (updated_location, Some(get_sdk_config(self).await)),
-            (false, location) => (location, None),
-        };
-
-        let data_location = match parse_glue_url(&data_location) {
-            // When the provided s looks like glue://database.table we lookup the storage location
-            // When the provided s does not look like glue://database.table, return s as is.
-            Some((database_name, table_name)) => {
-                let sdk_config = match maybe_sdk_config {
-                    Some(sdk_config) => sdk_config,
-                    None => get_sdk_config(self).await,
-                };
-
-                get_storage_location(&sdk_config, &database_name, &table_name)
-                    .await
-                    .unwrap_or_else(|_| {
-                        panic!(
-                            "failed to get storage location for {}.{}",
-                            database_name, table_name
-                        )
-                    })
-            }
-            None => data_location,
-        };
-
-        let globbing_path = GlobbingPath::parse(&data_location)?;
-        Ok(globbing_path)
-    }*/
 }

@@ -23,7 +23,12 @@ fn get_qv_cmd() -> datafusion::common::Result<Command> {
 }
 
 fn build_row_regex_predicate(columns: Vec<&str>) -> RegexPredicate {
-    let pattern = columns.join("\\s*|\\s*");
+    let row = columns
+        .into_iter()
+        .map(regex::escape)
+        .collect::<Vec<_>>()
+        .join("\\s*\\|\\s*");
+    let pattern = format!(r"\|\s*{row}\s*\|");
     predicate::str::is_match(pattern).unwrap()
 }
 
@@ -47,7 +52,7 @@ async fn run_with_s3_parquet_file() -> datafusion::common::Result<()> {
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
     let header_predicate =
-        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
 
     let data_predicate = build_row_regex_predicate(vec![
         "2020-01-21",
@@ -76,7 +81,7 @@ async fn run_with_s3_console_parquet_file() -> datafusion::common::Result<()> {
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
     let header_predicate =
-        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
 
     let data_predicate = build_row_regex_predicate(vec![
         "2020-01-21",
@@ -105,7 +110,7 @@ async fn run_with_s3_parquet_files_in_folder_trailing_slash() -> datafusion::com
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
     let header_predicate =
-        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
 
     let data_predicate = build_row_regex_predicate(vec![
         "2020-01-21",
@@ -134,7 +139,7 @@ async fn run_with_s3_parquet_files_in_folder_no_trailing_slash() -> datafusion::
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
     let header_predicate =
-        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
 
     let data_predicate = build_row_regex_predicate(vec![
         "2020-01-21",
@@ -153,6 +158,102 @@ async fn run_with_s3_parquet_files_in_folder_no_trailing_slash() -> datafusion::
 }
 
 #[tokio::test]
+async fn run_with_s3_iceberg_table() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("s3://data/iceberg/db/COVID-19_NYT")
+        .arg("-q")
+        .arg("select * from tbl order by date, county, state, fips, cases, deaths");
+
+    let header_predicate =
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
+
+    let data_predicate = build_row_regex_predicate(vec![
+        "2020-01-21",
+        "Snohomish",
+        "Washington",
+        "53061",
+        "1",
+        "0",
+    ]);
+
+    cmd.assert()
+        .success()
+        .stdout(header_predicate)
+        .stdout(data_predicate);
+    Ok(())
+}
+
+#[tokio::test]
+async fn run_with_s3_iceberg_metadata_file() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("s3://data/iceberg/db/COVID-19_NYT/metadata/v3.metadata.json")
+        .arg("-q")
+        .arg("select count(*) as row_count from tbl");
+
+    cmd.assert()
+        .success()
+        .stdout(build_row_regex_predicate(vec!["row_count"]))
+        .stdout(build_row_regex_predicate(vec!["1111930"]));
+    Ok(())
+}
+
+#[tokio::test]
+async fn run_with_s3_iceberg_time_travel() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("s3://data/iceberg/db/COVID-19_NYT/metadata/v2.metadata.json")
+        .arg("--at")
+        .arg("2022-11-04T03:10:41Z")
+        .arg("-q")
+        .arg("select count(*) as row_count from tbl");
+
+    cmd.assert()
+        .success()
+        .stdout(build_row_regex_predicate(vec!["row_count"]))
+        .stdout(build_row_regex_predicate(vec!["157865"]));
+    Ok(())
+}
+
+#[tokio::test]
+async fn run_with_rest_catalog_iceberg_table() -> datafusion::common::Result<()> {
+    configure_minio();
+
+    let mut cmd = get_qv_cmd()?;
+    let cmd = cmd
+        .arg("db.COVID-19_NYT")
+        .arg("--rest-catalog")
+        .arg("http://localhost:8181")
+        .arg("--catalog-warehouse")
+        .arg("s3://data/iceberg")
+        .arg("--catalog-property")
+        .arg("s3.endpoint=http://localhost:9000")
+        .arg("--catalog-property")
+        .arg("s3.path-style-access=true")
+        .arg("--catalog-property-env")
+        .arg("s3.access-key-id=AWS_ACCESS_KEY_ID")
+        .arg("--catalog-property-env")
+        .arg("s3.secret-access-key=AWS_SECRET_ACCESS_KEY")
+        .arg("--catalog-property-env")
+        .arg("s3.region=AWS_REGION")
+        .arg("-q")
+        .arg("select count(*) as row_count from tbl");
+
+    cmd.assert()
+        .success()
+        .stdout(build_row_regex_predicate(vec!["row_count"]))
+        .stdout(build_row_regex_predicate(vec!["1111930"]));
+    Ok(())
+}
+
+#[tokio::test]
 async fn run_with_s3_deltalake() -> datafusion::common::Result<()> {
     configure_minio();
 
@@ -165,7 +266,7 @@ async fn run_with_s3_deltalake() -> datafusion::common::Result<()> {
         .arg("select * from tbl order by date, county, state, fips, cases, deaths");
 
     let header_predicate =
-        build_row_regex_predicate(vec!["date", "county", "state", "fips", "case", "deaths"]);
+        build_row_regex_predicate(vec!["date", "county", "state", "fips", "cases", "deaths"]);
 
     let data_predicate = build_row_regex_predicate(vec![
         "2020-01-21",
@@ -173,7 +274,7 @@ async fn run_with_s3_deltalake() -> datafusion::common::Result<()> {
         "Washington",
         "53061",
         "1",
-        "0X",
+        "0",
     ]);
 
     cmd.assert()

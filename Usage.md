@@ -40,7 +40,8 @@ In case you have AWS SSO credentials you need to set the following:
 
 * `AWS_PROFILE`
 
-For an S3-compatible service, set `AWS_ENDPOINT_URL` to its endpoint. Set
+For an S3-compatible service, set `AWS_ENDPOINT_URL_S3` (or the global
+`AWS_ENDPOINT_URL`) to its endpoint. Set
 `AWS_ALLOW_HTTP=true` only when the endpoint uses plain HTTP, such as a local
 [MinIO](https://min.io/) development server. See the
 [`AmazonS3Builder` configuration](https://docs.rs/object_store/latest/object_store/aws/struct.AmazonS3Builder.html)
@@ -66,7 +67,7 @@ Then provide the Storj gateway endpoint and select that profile. Storj is
 globally distributed, so qv's default region does not select a storage region.
 
 ```bash
-AWS_ENDPOINT_URL="https://gateway.storjshare.io" \
+AWS_ENDPOINT_URL_S3="https://gateway.storjshare.io" \
 qv s3://my-bucket/path/to/data.parquet --profile storj
 ```
 
@@ -106,8 +107,66 @@ qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT
 qv /Users/timvw/src/github/delta-rs/rust/tests/data/COVID-19_NYT --at "2022-01-01T16:39:00+01:00"
 ```
 
+## View an Iceberg table
+
+Pass either the table root or a specific Iceberg metadata file. qv reads the
+Iceberg snapshot and manifest metadata, rather than treating the data directory
+as a collection of unrelated Parquet files.
+
+```bash
+qv s3://my-warehouse/analytics/events
+qv /data/warehouse/analytics/events/metadata/v3.metadata.json
+```
+
+Iceberg time travel uses the newest snapshot at or before the supplied RFC 3339
+timestamp:
+
+```bash
+qv s3://my-warehouse/analytics/events --at 2026-01-01T00:00:00Z
+```
+
 ## View glue table
+
+For an Iceberg table, qv loads the table through the Glue catalog. Other Glue
+tables keep using their storage descriptor and SerDe settings.
 
 ```bash
 qv glue://mydb.table1
 ```
+
+## View a table through an Iceberg REST catalog
+
+With `--rest-catalog`, the positional argument is a namespace-qualified table
+identifier instead of a filesystem path.
+
+```bash
+qv analytics.events \
+  --rest-catalog http://localhost:8181 \
+  --catalog-warehouse s3://my-warehouse
+```
+
+For local development and integration tests, the repository starts the official
+Apache Iceberg REST fixture on port 8181 alongside MinIO:
+
+```bash
+./ci/minio_start.sh
+./ci/iceberg_rest_start.sh
+cargo test --all-features
+./ci/iceberg_rest_stop.sh
+./ci/minio_stop.sh
+```
+
+Non-sensitive catalog and storage settings can be repeated as Iceberg
+`KEY=VALUE` properties. Source secrets from environment variables so they do
+not appear in the process argument list or shell history:
+
+```bash
+qv analytics.events \
+  --rest-catalog https://catalog.example.com \
+  --catalog-property-env token=ICEBERG_TOKEN \
+  --catalog-property header.X-Tenant=analytics
+```
+
+These property options can also configure direct Iceberg paths and Glue-backed
+Iceberg tables. Use `AWS_ENDPOINT_URL_GLUE` when overriding the Glue service
+endpoint; the S3 endpoint remains independently configurable.

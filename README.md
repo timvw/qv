@@ -41,6 +41,7 @@ For more examples consult our [Usage examples](Usage.md).
 * View file schemas
 * Supported formats:
   - [Deltalake](https://delta.io/)
+  - [Apache Iceberg](https://iceberg.apache.org/), including snapshot metadata and deletes
   - [Parquet](https://parquet.apache.org/)
   - [Avro](https://avro.apache.org/)
   - [CSV](https://en.wikipedia.org/wiki/Comma-separated_values)
@@ -51,6 +52,9 @@ For more examples consult our [Usage examples](Usage.md).
     [Storj](https://www.storj.io/) (also accepts URLs copied from the AWS S3
     console)
   - [GCS](https://cloud.google.com/storage)
+* Supported catalogs:
+  - [AWS Glue](https://aws.amazon.com/glue/) through `glue://database.table`
+  - [Apache Iceberg REST](https://iceberg.apache.org/rest-catalog-spec/) through `--rest-catalog`
 
 ## Installation
 Read the [Installation instructions](Installation.md).
