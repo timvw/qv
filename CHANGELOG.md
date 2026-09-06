@@ -6,18 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/timvw/qv/compare/v0.9.15...v0.10.0) - 2026-09-06
+
 ### Added
 
 - Read Apache Iceberg tables from local storage, S3, and GCS using their snapshot metadata.
 - Load Iceberg tables from AWS Glue and Iceberg REST catalogs.
 - Add Iceberg catalog/storage properties, environment-backed secrets, and timestamp-based snapshot selection.
-- Add an end-to-end REST catalog test using the official Apache Iceberg fixture and MinIO.
 
 ### Changed
 
 - Upgrade the data stack to DataFusion 53.1, Arrow 58, Delta Lake 0.32.4, and Iceberg 0.10.1.
 - Commit `Cargo.lock` for reproducible qv binary builds.
-- Separate Glue (`AWS_ENDPOINT_URL_GLUE`) and S3 (`AWS_ENDPOINT_URL_S3`) endpoint overrides.
+- Use `AWS_ENDPOINT_URL_GLUE` and `AWS_ENDPOINT_URL_S3` for service-specific endpoints; the global `AWS_ENDPOINT_URL` now applies only as an S3 fallback.
+
+### Documentation
+
+- Clarify S3 console URL support and document the Storj S3 gateway configuration.
 
 ## [0.9.15](https://github.com/timvw/qv/compare/v0.9.7...v0.9.15) - 2025-11-25
 
