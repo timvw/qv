@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1](https://github.com/timvw/qv/compare/v0.10.0...v0.10.1) - 2026-09-14
+
+### Other
+
+- *(deps)* update rust crate clap to v4.6.7 ([#180](https://github.com/timvw/qv/pull/180))
+
 ## [0.10.0](https://github.com/timvw/qv/compare/v0.9.15...v0.10.0) - 2026-09-06
 
 ### Added
