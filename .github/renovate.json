@@ -4,6 +4,16 @@
   ],
   "packageRules": [
     {
+      "groupName": "rust non-major",
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "groupName": "github-actions",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"]
+    },
+    {
       "groupName": "datafusion ecosystem",
       "matchManagers": ["cargo"],
       "matchPackagePatterns": ["^datafusion", "^deltalake", "^object_store"],
