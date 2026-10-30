@@ -529,7 +529,7 @@ dependencies = [
  "aws-smithy-json 0.65.1",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "aws-types",
  "bytes",
@@ -633,9 +633,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-glue"
-version = "1.181.0"
+version = "1.182.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c394ff3ea5651458bbd9f8e8ca5618928019cfa79bc2885b8636ec98a4ec60b"
+checksum = "b123184754e3acc00991e2df9226bee82bd9a7171ec172ef477078357bb3f5fd"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -646,7 +646,7 @@ dependencies = [
  "aws-smithy-observability",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "aws-types",
  "bytes",
@@ -671,7 +671,7 @@ dependencies = [
  "aws-smithy-observability",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "aws-types",
  "bytes",
@@ -696,7 +696,7 @@ dependencies = [
  "aws-smithy-observability",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "aws-types",
  "bytes",
@@ -722,7 +722,7 @@ dependencies = [
  "aws-smithy-query",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "aws-smithy-xml",
  "aws-types",
@@ -832,7 +832,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b45f9fc77ffe92c92c341165a01a565bd30c39ecf5aa8c0719b41719009604f9"
 dependencies = [
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
 ]
 
@@ -852,7 +852,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "165f6265342a313ad6f7a1ac17a0cdba30c522039d3f41d8d6871ce8a2b34ecd"
 dependencies = [
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "aws-smithy-xml",
  "urlencoding",
@@ -869,7 +869,7 @@ dependencies = [
  "aws-smithy-http-client",
  "aws-smithy-observability",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "bytes",
  "fastrand",
@@ -923,9 +923,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-schema"
-version = "1.1.0"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bec8dae1015a6d959a5faf86fbdf77486cfe19e4ccb6ee009d8a46efc45028a4"
+checksum = "9543fc722ed4865ab29fb66bd7ed0bef7b029d265ba8c587144511e30006d431"
 dependencies = [
  "aws-smithy-runtime-api",
  "aws-smithy-types",
@@ -964,7 +964,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "590fdc1a70546b2f7f2061c42eaf173fb6f26d935330d069edc04dbd8f01d924"
 dependencies = [
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "xmlparser",
 ]
@@ -978,7 +978,7 @@ dependencies = [
  "aws-credential-types",
  "aws-smithy-async",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 1.1.0",
+ "aws-smithy-schema 1.1.2",
  "aws-smithy-types",
  "rustc_version",
  "tracing",
@@ -2878,7 +2878,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3483,7 +3483,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -5012,7 +5012,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls 0.23.43",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "thiserror",
  "tokio",
  "tracing",
@@ -5051,9 +5051,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5538,7 +5538,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5608,7 +5608,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6215,7 +6215,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6884,7 +6884,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
