@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1](https://github.com/timvw/qv/compare/v0.10.0...v0.10.1) - 2026-10-30
+
+### Other
+
+- *(deps)* update rust crate aws-sdk-glue to v1.182.0 ([#190](https://github.com/timvw/qv/pull/190))
+- *(deps)* update rust crate tokio to v1.53.2 ([#187](https://github.com/timvw/qv/pull/187))
+- *(deps)* update rust docker tag to v1.99 ([#186](https://github.com/timvw/qv/pull/186))
+- *(deps)* update rust crate aws-sdk-glue to v1.169.0 ([#185](https://github.com/timvw/qv/pull/185))
+- *(deps)* update rust crate aws-sdk-glue to v1.168.0 ([#184](https://github.com/timvw/qv/pull/184))
+- *(deps)* update rust crate aws-sdk-glue to v1.167.0 ([#182](https://github.com/timvw/qv/pull/182))
+- *(deps)* update rust crate aws-sdk-glue to v1.166.0 ([#181](https://github.com/timvw/qv/pull/181))
+- *(deps)* update rust crate clap to v4.6.7 ([#180](https://github.com/timvw/qv/pull/180))
+
 ## [0.10.0](https://github.com/timvw/qv/compare/v0.9.15...v0.10.0) - 2026-09-06
 
 ### Added
