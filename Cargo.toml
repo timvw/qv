@@ -20,7 +20,8 @@ exclude = [
 
 [dependencies]
 aws-config = "1.12.0"
-aws-sdk-glue = "1.164.0"
+# Without default features: the default "rustls" feature pulls the legacy hyper 0.14 / rustls 0.21 client.
+aws-sdk-glue = { version = "1.164.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 aws-types = "1.6.0"
 aws-credential-types = "1.3.0"
 chrono = "0.4.45"
