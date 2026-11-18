@@ -3,6 +3,10 @@ name: Release-plz
 permissions:
   pull-requests: write
   contents: write
+  # The OIDC token crates.io Trusted Publishing checks. `release-plz release` trades it for a
+  # short-lived crates.io token once publishing is enabled again (`publish` in .release-plz.toml);
+  # no crates.io token is stored in the repo.
+  id-token: write
 
 on:
   push:
@@ -37,7 +41,7 @@ jobs:
       - name: Install release-plz
         uses: taiki-e/install-action@v2
         with:
-          tool: release-plz@0.3.149
+          tool: release-plz@0.3.174
 
       - name: Run release-plz release-pr
         env:
@@ -81,7 +85,7 @@ jobs:
       - name: Install release-plz
         uses: taiki-e/install-action@v2
         with:
-          tool: release-plz@0.3.149
+          tool: release-plz@0.3.174
 
       - name: Run release-plz release (tags only; GitHub release handled by binaries workflow)
         env:
