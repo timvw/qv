@@ -16,7 +16,7 @@
     {
       "groupName": "datafusion ecosystem",
       "matchManagers": ["cargo"],
-      "matchPackagePatterns": ["^datafusion", "^deltalake", "^object_store"],
+      "matchPackagePatterns": ["^datafusion", "^deltalake", "^object_store", "^iceberg", "^arrow", "^parquet"],
       "separateMajorMinor": false,
       "commitMessageTopic": "datafusion ecosystem dependencies"
     },

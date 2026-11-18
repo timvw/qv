@@ -10,6 +10,7 @@ use aws_sdk_glue::types::{StorageDescriptor, Table};
 use aws_sdk_glue::Client;
 use aws_types::SdkConfig;
 use clap::Parser;
+use datafusion::common::TableReference;
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::file_format::avro::AvroFormat;
 use datafusion::datasource::file_format::csv::CsvFormat;
@@ -22,7 +23,6 @@ use datafusion::datasource::listing::{
 use datafusion::datasource::TableProvider;
 use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::prelude::*;
-use datafusion::sql::TableReference;
 use deltalake::open_table;
 use futures::TryStreamExt;
 use iceberg::io::{
@@ -650,13 +650,9 @@ async fn build_iceberg_provider(
         .ok_or_else(|| {
             DataFusionError::Execution(format!("Iceberg table has no snapshot at or before {at}"))
         })?;
-        IcebergStaticTableProvider::try_new_from_table_snapshot(table.clone(), snapshot_id)
-            .await
-            .map_err(iceberg_error)?
+        IcebergStaticTableProvider::try_new_from_table_snapshot(table.clone(), snapshot_id)?
     } else {
-        IcebergStaticTableProvider::try_new_from_table(table)
-            .await
-            .map_err(iceberg_error)?
+        IcebergStaticTableProvider::try_new_from_table(table)?
     };
     Ok(Arc::new(provider))
 }

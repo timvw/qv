@@ -64,7 +64,7 @@ async fn run_with_local_avro_file() -> datafusion::common::Result<()> {
         "0.0",
         "30332f30312f3039",
         "30",
-        "2009-03-01T00:00:00",
+        "2009-03-01T00:00:00Z",
     ]);
 
     cmd.assert()
