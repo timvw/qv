@@ -36,7 +36,7 @@ iceberg = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf5
 iceberg-catalog-glue = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf50bf4f5b3b776ac9cd6380a5f3e3" }
 iceberg-catalog-rest = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf50bf4f5b3b776ac9cd6380a5f3e3" }
 iceberg-datafusion = { git = "https://github.com/apache/datafusion-iceberg", rev = "a7e5f555970bf5ee61c6f47d3815d503ff837b2a" }
-iceberg-storage-opendal = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf50bf4f5b3b776ac9cd6380a5f3e3", default-features = false, features = ["opendal-fs", "opendal-s3", "opendal-gcs"] }
+iceberg-storage-opendal = { git = "https://github.com/apache/iceberg-rust", rev = "14e0919489a63d92449ffedaceff924899af99c4", default-features = false, features = ["opendal-fs", "opendal-s3", "opendal-gcs"] }
 object_store = { version = "0.13.2", features = ["aws", "gcp"] }
 openssl = { version = "0.10.81", optional = true }
 regex = "1.13.1"
