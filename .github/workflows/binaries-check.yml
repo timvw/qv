@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same PR supersedes the running check.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_GIT_FETCH_WITH_CLI: true
@@ -24,45 +29,48 @@ defaults:
     shell: bash
 
 jobs:
+  # Pull requests only build two Linux targets (one gnu, one cross-compiled musl):
+  # macOS and Windows runners are scarce and slow. The full matrix runs on manual
+  # dispatch here, and on every release in the "Publish binaries" workflow.
+  targets:
+    name: Select targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - name: Select targets
+        id: select
+        env:
+          PR_ONLY: ${{ github.event_name == 'pull_request' }}
+          TARGETS: |
+            [
+              {"target": "aarch64-unknown-linux-gnu",  "os": "ubuntu-24.04", "use_cross": true,  "features": "vendored-openssl"},
+              {"target": "aarch64-unknown-linux-musl", "os": "ubuntu-24.04", "use_cross": true,  "features": "vendored-openssl", "pr": true},
+              {"target": "aarch64-apple-darwin",       "os": "macos-15",     "use_cross": false, "features": "vendored-openssl"},
+              {"target": "aarch64-pc-windows-msvc",    "os": "windows-2022", "use_cross": false, "features": ""},
+              {"target": "x86_64-unknown-linux-gnu",   "os": "ubuntu-24.04", "use_cross": true,  "features": "vendored-openssl", "pr": true},
+              {"target": "x86_64-unknown-linux-musl",  "os": "ubuntu-24.04", "use_cross": true,  "features": "vendored-openssl"},
+              {"target": "x86_64-apple-darwin",        "os": "macos-15",     "use_cross": false, "features": "vendored-openssl"},
+              {"target": "x86_64-pc-windows-msvc",     "os": "windows-2022", "use_cross": false, "features": ""}
+            ]
+        run: |
+          set -euo pipefail
+          if [[ "${PR_ONLY}" == "true" ]]; then
+            matrix=$(jq -c '[.[] | select(.pr == true)]' <<<"${TARGETS}")
+          else
+            matrix=$(jq -c '.' <<<"${TARGETS}")
+          fi
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+
   build:
     name: ${{ matrix.target }}
+    needs: targets
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04
-            use_cross: true
-            features: vendored-openssl
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-24.04
-            use_cross: true
-            features: vendored-openssl
-          - target: aarch64-apple-darwin
-            os: macos-15
-            use_cross: false
-            features: vendored-openssl
-          - target: aarch64-pc-windows-msvc
-            os: windows-2022
-            use_cross: false
-            features: ""
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-24.04
-            use_cross: true
-            features: vendored-openssl
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-24.04
-            use_cross: true
-            features: vendored-openssl
-          - target: x86_64-apple-darwin
-            os: macos-15
-            use_cross: false
-            features: vendored-openssl
-          - target: x86_64-pc-windows-msvc
-            os: windows-2022
-            use_cross: false
-            features: ""
+        include: ${{ fromJSON(needs.targets.outputs.matrix) }}
     timeout-minutes: 60
     steps:
       - name: Checkout repository
