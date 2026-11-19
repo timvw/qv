@@ -35,7 +35,7 @@ futures = "0.3.34"
 iceberg = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf50bf4f5b3b776ac9cd6380a5f3e3" }
 iceberg-catalog-glue = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf50bf4f5b3b776ac9cd6380a5f3e3" }
 iceberg-catalog-rest = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf50bf4f5b3b776ac9cd6380a5f3e3" }
-iceberg-datafusion = { git = "https://github.com/apache/datafusion-iceberg", rev = "184855bb54bbc6ab332c18862217db534602523d" }
+iceberg-datafusion = { git = "https://github.com/apache/datafusion-iceberg", rev = "a26f38785cd7f69bb8d0e22a1b6a29cf65b2da72" }
 iceberg-storage-opendal = { git = "https://github.com/apache/iceberg-rust", rev = "5b82ab99aeaf50bf4f5b3b776ac9cd6380a5f3e3", default-features = false, features = ["opendal-fs", "opendal-s3", "opendal-gcs"] }
 object_store = { version = "0.13.2", features = ["aws", "gcp"] }
 openssl = { version = "0.10.81", optional = true }
