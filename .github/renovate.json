@@ -27,9 +27,9 @@
       "automerge": true
     },
     {
-      "description": "iceberg-rust and datafusion-iceberg are pinned to git revs that must stay in sync (datafusion-iceberg pins iceberg-rust itself). Update them by hand until both publish releases.",
+      "description": "iceberg-rust and datafusion-iceberg are pinned to git revs that must stay in sync (datafusion-iceberg pins iceberg-rust itself). Update them by hand until both publish releases. Match on depName: for git dependencies the packageName is the repository URL, so a packageName pattern never matches.",
       "matchManagers": ["cargo"],
-      "matchPackagePatterns": ["^iceberg"],
+      "matchDepNames": ["/^iceberg/"],
       "matchUpdateTypes": ["digest"],
       "enabled": false
     }
